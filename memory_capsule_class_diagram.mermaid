@@ -1,0 +1,84 @@
+classDiagram
+    class User {
+        -string walletAddress
+        -string publicKey
+        -string email
+        +createMemoryCapsule()
+        +getMemories()
+        +updateProfile()
+    }
+
+    class MemoryCapsule {
+        -string id
+        -string owner
+        -string[] contentHashes
+        -MemoryMetadata metadata
+        -AccessControl accessControl
+        +createMemory(content, metadata)
+        +updateMemory(id, content)
+        +deleteMemory(id)
+        +shareMemory(id, recipients)
+    }
+
+    class MemoryMetadata {
+        -string title
+        -string description
+        -string[] tags
+        -timestamp createdAt
+        -timestamp updatedAt
+        -AIEnhancement[] enhancements
+        +addTag(tag)
+        +updateDescription(text)
+        +addEnhancement(enhancement)
+    }
+
+    class StorageManager {
+        -IPFSClient ipfsClient
+        -FilecoinClient filecoinClient
+        +uploadContent(file)
+        +pinContent(hash)
+        +retrieveContent(hash)
+        +verifyStorage(hash)
+    }
+
+    class AIProcessor {
+        -Queue processingQueue
+        -MLModel[] models
+        +enhanceImage(image)
+        +generateNarrative(content)
+        +processAudio(audio)
+        +createInteractiveScene(media)
+    }
+
+    class BlockchainManager {
+        -Web3Client web3
+        -SmartContract contract
+        +mintMemoryNFT(contentHash)
+        +transferOwnership(tokenId, newOwner)
+        +updateAccess(tokenId, permissions)
+        +verifyOwnership(tokenId)
+    }
+
+    class AccessControl {
+        -string[] allowedUsers
+        -Permission[] permissions
+        +grantAccess(user, permission)
+        +revokeAccess(user)
+        +checkPermission(user, action)
+    }
+
+    class EncryptionService {
+        -LitProtocol litClient
+        +encryptContent(content, recipients)
+        +decryptContent(encryptedContent)
+        +generateKeys()
+        +manageAccessConditions()
+    }
+
+    User "1" -- "*" MemoryCapsule
+    MemoryCapsule "1" -- "1" MemoryMetadata
+    MemoryCapsule "1" -- "1" AccessControl
+    MemoryCapsule -- StorageManager
+    MemoryCapsule -- AIProcessor
+    MemoryCapsule -- BlockchainManager
+    MemoryCapsule -- EncryptionService

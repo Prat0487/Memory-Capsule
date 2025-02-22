@@ -1,0 +1,58 @@
+sequenceDiagram
+    participant U as User
+    participant MC as MemoryCapsule
+    participant AI as AIProcessor
+    participant SM as StorageManager
+    participant BM as BlockchainManager
+    participant ES as EncryptionService
+    participant IPFS as IPFS/Filecoin
+    participant BC as Blockchain
+
+    %% Memory Creation Flow
+    U->>MC: createMemory(content, metadata)
+    MC->>ES: encryptContent(content)
+    ES-->>MC: encryptedContent
+    
+    par AI Processing
+        MC->>AI: processContent(content)
+        AI->>AI: enhanceImage()
+        AI->>AI: generateNarrative()
+        AI-->>MC: enhancedContent
+    and Storage Process
+        MC->>SM: uploadContent(encryptedContent)
+        SM->>IPFS: store(encryptedContent)
+        IPFS-->>SM: contentHash
+        SM-->>MC: storageConfirmation
+    end
+
+    MC->>BM: mintMemoryNFT(contentHash)
+    BM->>BC: deploySmartContract()
+    BC-->>BM: tokenId
+    BM-->>MC: nftConfirmation
+    MC-->>U: memoryCreationSuccess
+
+    %% Memory Access Flow
+    U->>MC: accessMemory(memoryId)
+    MC->>BM: verifyOwnership(tokenId)
+    BM->>BC: checkPermissions()
+    BC-->>BM: accessPermissions
+    BM-->>MC: ownershipConfirmed
+    
+    MC->>SM: retrieveContent(contentHash)
+    SM->>IPFS: fetch(contentHash)
+    IPFS-->>SM: encryptedContent
+    SM-->>MC: content
+    
+    MC->>ES: decryptContent(encryptedContent)
+    ES-->>MC: decryptedContent
+    MC-->>U: displayMemory()
+
+    %% Memory Sharing Flow
+    U->>MC: shareMemory(memoryId, recipients)
+    MC->>BM: updateAccess(tokenId, recipients)
+    BM->>BC: modifyPermissions()
+    BC-->>BM: permissionsUpdated
+    
+    MC->>ES: generateAccessKeys(recipients)
+    ES-->>MC: accessKeys
+    MC-->>U: sharingComplete
