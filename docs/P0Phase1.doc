@@ -1,0 +1,331 @@
+Below is a detailed plan to implement Phase 1 of the roadmap, which focuses on:
+• Implementing a basic UI with wallet integration
+• Setting up an IPFS node or using a pinning service
+• Preparing the file upload flow (photos, text, audio)
+
+Project Setup and Dependencies
+
+a) Create/Confirm Project Structure
+• For a React + Web3 frontend, ensure you have a folder layout such as:
+– src/frontend/components/
+– src/frontend/pages/
+– src/frontend/utils/
+– src/backend/ (if you are using Node.js or another backend framework)
+– src/config/ (optional, for shared configuration)
+• Initialize a package.json in both your frontend and backend directories if needed.
+
+b) Install Required Dependencies
+• React, Tailwind CSS, ethers.js (or web3.js), and any UI libraries you plan to use.
+• Example of installing React, ethers, Tailwind in your frontend:
+
+npm install react react-dom ethers tailwindcss
+
+Copy
+
+Execute
+
+  • If you plan to spin up a local Node.js backend to coordinate IPFS or handle server-side tasks:
+
+Copy
+
+Apply
+
+npm install express cors dotenv ipfs-http-client
+
+Copy
+
+Execute
+
+  • Customize these commands as needed for your environment.
+
+Copy
+
+Apply
+
+Basic UI with Wallet Integration
+
+a) Initialize Tailwind CSS in Your React Project
+
+Configure Tailwind in your project (e.g., postcss.config.js, tailwind.config.js).
+Import Tailwind in your main index.css file.
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles can be added below... */
+
+Copy
+
+Apply
+
+index.css
+b) Add a “Connect Wallet” Button and Basic Layout
+1. Create a main layout or a header component with a “Connect Wallet” button.
+2. Use ethers.js (or web3.js) to handle the connection logic.
+
+import React, { useState } from 'react'
+import { ethers } from 'ethers'
+
+function Header() {
+  const [account, setAccount] = useState(null)
+
+  async function connectWallet() {
+    if (window.ethereum) {
+      try {
+        const provider = new ethers.providers.Web3Provider(window.ethereum)
+        await provider.send('eth_requestAccounts', [])
+        const signer = provider.getSigner()
+        const address = await signer.getAddress()
+        setAccount(address)
+      } catch (error) {
+        console.error('Failed to connect wallet:', error)
+      }
+    } else {
+      alert('MetaMask not detected. Please install a Web3 wallet.')
+    }
+  }
+
+  return (
+    <header className="flex items-center justify-between p-4 bg-gray-100">
+      <h1 className="text-xl font-bold">Memory Capsule</h1>
+      {account ? (
+        <span className="text-gray-700">Connected: {account.slice(0, 6)}...{account.slice(-4)}</span>
+      ) : (
+        <button
+          onClick={connectWallet}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Connect Wallet
+        </button>
+      )}
+    </header>
+  )
+}
+
+export default Header
+
+Copy
+
+Apply
+
+Header.jsx
+c) Maintaining a Global User State
+• Optionally implement a higher-level component (e.g., App.js) or a context provider to manage the user’s wallet connection across the app.
+
+import React from 'react'
+import Header from './components/Header'
+
+function App() {
+  return (
+    <div className="min-h-screen bg-white">
+      <Header />
+      {/* Main content goes here */}
+    </div>
+  )
+}
+
+export default App
+
+Copy
+
+Apply
+
+App.js
+Setting up an IPFS Node or Pinning Service
+
+a) Decide on IPFS Hosting Strategy
+• Self-Hosted IPFS Node: You can run a local IPFS node on your own server or locally during development.
+• Pinning Service: For production or convenience, consider using a service like Pinata or Infura for reliable IPFS pinning.
+
+b) Installing IPFS (if self-hosted)
+• If you plan to run a local IPFS daemon:
+
+npm install ipfs ipfs-http-client
+
+Copy
+
+Execute
+
+  • Or install the IPFS CLI globally:
+
+Copy
+
+Apply
+
+npm install -g ipfs
+
+Copy
+
+Execute
+
+  • Then initialize and run IPFS locally:
+
+Copy
+
+Apply
+
+ipfs init
+
+Copy
+
+Execute
+
+ipfs daemon
+
+Copy
+
+Execute
+
+c) Creating a Utility to Upload Files to IPFS from the Frontend
+1. Use the ipfs-http-client in a utility function.
+2. Configure and export an instance for use in your React components.
+
+import { create } from 'ipfs-http-client'
+
+const projectId = process.env.REACT_APP_INFURA_IPFS_PROJECT_ID
+const projectSecret = process.env.REACT_APP_INFURA_IPFS_PROJECT_SECRET
+
+// Example for using Infura. If self-hosted, connect to local node (e.g., 'http://localhost:5001').
+const auth =
+  'Basic ' + Buffer.from(projectId + ':' + projectSecret).toString('base64')
+
+const ipfs = create({
+  url: 'https://ipfs.infura.io:5001/api/v0',
+  headers: {
+    authorization: auth,
+  },
+})
+
+export default ipfs
+
+Copy
+
+Apply
+
+ipfs.js
+Preparing the File Upload Flow
+
+a) Building a Simple Upload Component
+• Provide a drag-and-drop or file input to let users upload photos, text, or audio.
+• Validate file type and size.
+• Show progress bars or loading states.
+
+import React, { useState } from 'react'
+import ipfs from '../utils/ipfs'
+
+function UploadMemory() {
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [uploadStatus, setUploadStatus] = useState('idle')
+  const [ipfsHash, setIpfsHash] = useState('')
+
+  const handleFileChange = (e) => {
+    setSelectedFile(e.target.files[0])
+  }
+
+  const uploadToIPFS = async () => {
+    if (!selectedFile) return
+
+    setUploadStatus('uploading')
+    try {
+      const added = await ipfs.add(selectedFile)
+      setIpfsHash(added.path)
+      setUploadStatus('uploaded')
+    } catch (error) {
+      console.error('IPFS upload error:', error)
+      setUploadStatus('error')
+    }
+  }
+
+  return (
+    <div className="max-w-md mx-auto p-4 border rounded-lg">
+      <h2 className="text-lg font-bold mb-2">Upload Memory</h2>
+      <input
+        type="file"
+        onChange={handleFileChange}
+        className="mb-2"
+        accept="image/*,audio/*,text/plain"
+      />
+      <button
+        className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+        onClick={uploadToIPFS}
+      >
+        Upload
+      </button>
+
+      {uploadStatus === 'uploading' && <p className="mt-2">Uploading...</p>}
+      {uploadStatus === 'uploaded' && (
+        <div className="mt-2">
+          <p>File uploaded successfully!</p>
+          <p>IPFS Hash: {ipfsHash}</p>
+        </div>
+      )}
+      {uploadStatus === 'error' && <p className="mt-2 text-red-500">Upload failed.</p>}
+    </div>
+  )
+}
+
+export default UploadMemory
+
+Copy
+
+Apply
+
+UploadMemory.jsx
+b) Extend File Support (Text, Audio) & Additional Fields
+• If you want to handle text input (e.g., user-submitted notes) or audio recordings, you can create separate components or a combined interface with tabs for each format.
+• On the IPFS side, the handling is similar: you push either binary files (e.g., .wav, .mp3) or create a text blob.
+
+c) Performance and Size Considerations
+• In production, you may want to compress large images or audio files.
+• You can also add pre-checks for file size and type to ensure a smoother user experience.
+
+Integrate Components and Test
+
+a) Combine Wallet Integration and File Upload in the App
+• Ensure that users can only upload if they are connected with a valid wallet (if that is part of your requirements).
+• Otherwise, allow non-authenticated usage for the upload if needed.
+
+import React from 'react'
+import UploadMemory from '../components/UploadMemory'
+
+function Home() {
+  return (
+    <div className="p-4">
+      <UploadMemory />
+      {/* Future expansions: memory listing or AI processing */}
+    </div>
+  )
+}
+
+export default Home
+
+Copy
+
+Apply
+
+Home.jsx
+b) Manual Testing
+1. Connect your wallet in MetaMask and see if your address is displayed in the header.
+2. Upload different file types to ensure they reach IPFS successfully.
+3. Verify that the generated IPFS hash corresponds to the correctly uploaded content by checking on a public gateway (e.g., ipfs.io/ipfs/).
+
+c) Basic Security Checks
+• Check that no sensitive data is exposed in client-side logs or environment variables.
+• Confirm that you are storing minimal key references. For advanced security, consider posting the content hash to a blockchain-based contract that references ownership (this might come in Phase 2 or later).
+
+Goals for Completion (End of Week 2)
+
+• Users can open the dApp, connect their wallet, and upload basic file types (images, text, audio).
+• On submission, files are stored on IPFS, with a content hash returned to the user.
+• The UI is minimal but clear—the next steps can involve hooking into AI or advanced sharing.
+
+Summary of Implementation Steps:
+
+Set up the React project and Tailwind configuration.
+Implement a basic header with a “Connect Wallet” button using ethers.js.
+Configure an IPFS utility (local node or pinning service) for file uploads.
+Build a simple upload interface that handles images, text, and audio.
+Test the end-to-end flow: wallet connection → file selection → IPFS storage → IPFS hash returned.
+Resolve any environment/config issues (e.g., Infura keys, local IPFS daemon setup).
+By the end of this phase, you’ll have a foundational UI for user wallet authentication and a straightforward file upload pipeline connected to IPFS, which lays the groundwork for further integration of AI processing, advanced sharing, and other P0 features.
+
