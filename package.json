@@ -1,13 +1,11 @@
 {
-  "name": "memory-capsule-frontend",
+  "name": "memory-capsule",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "start": "react-scripts start",
     "dev": "vite",
     "build": "vite build",
-    "lint": "eslint ./src --quiet",
     "preview": "vite preview"
   },
   "dependencies": {
