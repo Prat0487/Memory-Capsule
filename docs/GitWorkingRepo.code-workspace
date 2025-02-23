@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "../../GitReady"
+		},
+		{
+			"path": "../../Backup_irrelevant"
+		},
+		{
+			"path": "../../Blog-website"
+		},
+		{
+			"path": "../../workspace"
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../Cenovia-International"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "Memory-Capsule"
+	}
+}
