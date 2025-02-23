@@ -8,24 +8,26 @@ import MemoryCapsuleView from './components/memory/MemoryCapsuleView';
 function App() {
   return (
     <UserProvider>
-      <div className="min-h-screen bg-gray-50">
-        <header className="bg-white shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-800">Memory Capsule</h1>
+      <div className="min-h-screen bg-background">
+        <header className="glass-effect sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Memory Capsule
+            </h1>
             <WalletConnect />
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="space-y-8">
-            <MemoryCapsuleCreate />
-            <MemoryCapsuleView />
+        <main className="max-w-7xl mx-auto px-6 py-12">
+          <div className="space-y-12">
+            <MemoryCapsuleCreate className="card-hover glass-effect rounded-xl p-6" />
+            <MemoryCapsuleView className="card-hover glass-effect rounded-xl p-6" />
           </div>
         </main>
 
-        <footer className="bg-white border-t mt-12">
-          <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-            <p className="text-center text-gray-500 text-sm">
+        <footer className="glass-effect mt-auto">
+          <div className="max-w-7xl mx-auto px-6 py-8">
+            <p className="text-center text-gray-600 font-medium">
               Memory Capsule Platform - Preserve your memories securely on the blockchain
             </p>
           </div>
@@ -34,5 +36,4 @@ function App() {
     </UserProvider>
   );
 }
-
 export default App;
