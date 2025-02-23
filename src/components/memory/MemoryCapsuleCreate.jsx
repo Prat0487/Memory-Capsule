@@ -1,104 +1,84 @@
 // src/components/memory/MemoryCapsuleCreate.jsx
-import React, { useState } from 'react';
-import { uploadToIPFS } from '../../services/ipfs';
-import { generateNarrative } from '../../services/ai';
-import { mintMemoryNFT } from '../../services/blockchain';
+import React, { useState } from 'react'
+import { uploadToIPFS } from '../../services/ipfs'
 
 function MemoryCapsuleCreate() {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [files, setFiles] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [files, setFiles] = useState([])
+  const [uploading, setUploading] = useState(false)
 
   const handleFileChange = (e) => {
-    setFiles(Array.from(e.target.files));
-  };
+    setFiles(Array.from(e.target.files))
+  }
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+    e.preventDefault()
+    setUploading(true)
 
     try {
-      // Upload files to IPFS
-      const ipfsHashes = await Promise.all(files.map(file => uploadToIPFS(file)));
+      const uploadResults = await uploadToIPFS(files)
+      console.log('Upload successful:', uploadResults)
       
-      // Generate AI narrative
-      const narrative = await generateNarrative(description, files);
+      // Clear form after successful upload
+      setTitle('')
+      setDescription('')
+      setFiles([])
       
-      // Create memory NFT
-      const memoryData = {
-        title,
-        description,
-        narrative,
-        ipfsHashes,
-        timestamp: new Date().toISOString()
-      };
-      
-      await mintMemoryNFT(memoryData);
-      
-      // Reset form
-      setTitle('');
-      setDescription('');
-      setFiles([]);
-      
-      alert('Memory capsule created successfully!');
     } catch (error) {
-      console.error('Failed to create memory:', error);
-      alert('Failed to create memory capsule');
+      console.error('Upload failed:', error)
     } finally {
-      setIsLoading(false);
+      setUploading(false)
     }
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-lg mx-auto p-6 space-y-6">
-      <div>
-        <label className="block text-gray-700 text-sm font-bold mb-2">
-          Title
-        </label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700"
-          required
-        />
-      </div>
+    <div className="p-6 glass-effect rounded-xl">
+      <h2 className="text-2xl font-bold mb-4">Create Memory Capsule</h2>
+      
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium mb-2">Title</label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="w-full border rounded-lg p-2"
+            required
+          />
+        </div>
 
-      <div>
-        <label className="block text-gray-700 text-sm font-bold mb-2">
-          Description
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 h-32"
-          required
-        />
-      </div>
+        <div>
+          <label className="block text-sm font-medium mb-2">Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full border rounded-lg p-2 h-24"
+            required
+          />
+        </div>
 
-      <div>
-        <label className="block text-gray-700 text-sm font-bold mb-2">
-          Media Files
-        </label>
-        <input
-          type="file"
-          onChange={handleFileChange}
-          multiple
-          className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700"
-          accept="image/*,video/*,audio/*"
-        />
-      </div>
+        <div>
+          <label className="block text-sm font-medium mb-2">Upload Files</label>
+          <input
+            type="file"
+            onChange={handleFileChange}
+            className="w-full border rounded-lg p-2"
+            multiple
+            accept="image/*,video/*,audio/*"
+          />
+        </div>
 
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50"
-      >
-        {isLoading ? 'Creating Memory...' : 'Create Memory Capsule'}
-      </button>
-    </form>
-  );
+        <button
+          type="submit"
+          disabled={uploading || !files.length}
+          className="w-full bg-gradient-to-r from-primary to-secondary text-white py-2 px-4 rounded-lg hover:opacity-90 disabled:opacity-50"
+        >
+          {uploading ? 'Creating Memory...' : 'Create Memory'}
+        </button>
+      </form>
+    </div>
+  )
 }
 
-export default MemoryCapsuleCreate;
+export default MemoryCapsuleCreate
