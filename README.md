@@ -31,9 +31,38 @@ A modern React template for web applications and games, featuring React 18, Vite
 - `pnpm run lint` - Lint source files
 
 ## Tech Stack
-
-- React
-- Vite
+- React 18
 - TailwindCSS
-- ESLint
-- Javascript
+- Pinata IPFS
+- Vite
+
+## Development
+
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm run dev
+
+
+# Memory Capsule Platform
+
+A decentralized platform for preserving and sharing digital memories using IPFS and AI enhancement.
+
+## Features
+
+### Storage & Upload
+- Multi-file upload support
+- Decentralized storage via Pinata/IPFS
+- Permanent content addressing
+- Upload progress tracking
+- Instant file preview URLs
+
+### User Interface
+- Clean, modern React components
+- Mobile-responsive design
+- TailwindCSS styling
+- Real-time upload feedback
+- Intuitive file management
+
+## Project Structure
