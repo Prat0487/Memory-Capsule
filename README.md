@@ -1,2 +1,68 @@
-# Memory-Capsule
-AI crafts personalized memory capsules from photos, voice, and wearables, stored on blockchain/IPFS. Evolving narratives, 3D scenes, holograms—your digital legacy, secure and owned by you.
+# React + Vite Template
+
+A modern React template for web applications and games, featuring React 18, Vite, TailwindCSS, and Material UI.
+
+## Project Structure
+
+```
+├── src/
+│   ├── App.jsx          # Main application component
+│   ├── main.jsx         # Application entry point
+│   └── index.css        # Global styles (Tailwind)
+├── public/              # Static assets
+├── index.html           # HTML template
+├── vite.config.js       # Vite configuration
+├── tailwind.config.js   # Tailwind configuration
+├── postcss.config.js    # PostCSS configuration
+└── eslint.config.js     # ESLint configuration
+```
+
+## Development Guidelines
+
+- Modify `index.html` and `src/App.jsx` as needed
+- Create new folders or files in `src/` directory as needed
+- Style components using TailwindCSS utility classes
+- Avoid modifying `src/main.jsx` and `src/index.css`
+- Only modify `vite.config.js` if absolutely necessary
+
+## Available Scripts
+- `pnpm install` - Install dependencies
+- `pnpm run dev` - Start development server
+- `pnpm run lint` - Lint source files
+
+## Tech Stack
+- React 18
+- TailwindCSS
+- Pinata IPFS
+- Vite
+
+## Development
+
+# Install dependencies
+pnpm install
+
+# Start development server
+pnpm run dev
+
+
+# Memory Capsule Platform
+
+A decentralized platform for preserving and sharing digital memories using IPFS and AI enhancement.
+
+## Features
+
+### Storage & Upload
+- Multi-file upload support
+- Decentralized storage via Pinata/IPFS
+- Permanent content addressing
+- Upload progress tracking
+- Instant file preview URLs
+
+### User Interface
+- Clean, modern React components
+- Mobile-responsive design
+- TailwindCSS styling
+- Real-time upload feedback
+- Intuitive file management
+
+## Project Structure

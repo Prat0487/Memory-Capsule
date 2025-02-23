@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for modern UI */
+:root {
+  --primary: #3B82F6;
+  --secondary: #1E40AF;
+  --background: #F3F4F6;
+}
+
+body {
+  background-color: var(--background);
+  font-family: 'Inter', sans-serif;
+}
+
+.glass-effect {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: 25px;
+  transition: all 0.3s;
+  background-color: rgba(106, 115, 125, 0.2);
+  &:hover {
+    background-color: rgba(106, 115, 125, 0.27);
+  }
+}
+
+::-webkit-scrollbar-corner {
+  display: none;
+}

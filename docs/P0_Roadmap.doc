@@ -1,0 +1,110 @@
+Below is a proposed roadmap for completing the P0 (Must-have) tasks listed in prd.json. These tasks are considered the foundational features required for a minimal viable product (MVP):
+
+Secure User Authentication and Wallet Integration
+a. Research & Framework Selection
+• Choose an appropriate Web3 library or SDK (e.g., ethers.js, web3.js) for wallet connectivity.
+• Decide on the main authentication approach. For instance, signing messages with users’ wallets or using an OAuth approach (if bridging Web2 and Web3 accounts) while still retaining Web3 functionality.
+
+b. Implementation Steps
+• Implement wallet connection UI (e.g., “Connect Wallet” button) in the React frontend.
+• Allow users to sign and verify messages (to confirm ownership of the wallet).
+• Link this to a backend session or a client-side session to maintain a stable user state.
+
+c. Testing & Security
+• Test different wallet providers (MetaMask, WalletConnect, etc.) on both desktop and mobile.
+• Ensure secure handling of potential phishing or signature replay attacks.
+• Set up thorough unit and integration tests, especially around authentication flows.
+
+Basic Memory Upload (Photos, Text, Audio)
+a. Define the Upload Flow
+• Create a user-friendly interface that allows users to drag-and-drop or select media.
+• Support photos, text, and audio.
+• Provide progress feedback (e.g., loading spinners, progress bars).
+
+b. Implement Upload Functionality
+• Use React hooks/components to handle file selection and preview.
+• Validate file types (images, audio) and text input.
+• Decide on initial location for file storage (potentially staging on a server or local client before pushing to IPFS).
+
+c. User Experience Considerations
+• Limit file size for performance or outline how to handle large files.
+• Provide warnings or fallback if file type is unsupported.
+• Build a clean UI/UX with instructions or tooltips for new users.
+
+IPFS Storage Integration
+a. Set Up IPFS Integration
+• Spin up an IPFS node (locally or use a third-party IPFS pinning service like Pinata or Infura).
+• Create utility functions to upload files to IPFS from the frontend (and optionally a backend).
+
+b. Data Management & Metadata
+• Decide how to manage metadata—store minimal data on-chain (e.g., IPFS content hash) and the rest off-chain.
+• Structure the data for future retrieval (folder or naming conventions).
+
+c. Testing & Reliability
+• Test IPFS calls under various network conditions.
+• Ensure files remain pinned or that a pinning service is reliably maintaining them.
+• Keep a fallback plan if IPFS nodes are temporarily unreachable.
+
+AI-Powered Memory Enhancement
+a. MVP AI Feature Scope
+• Start with a simple AI pipeline—e.g., a basic text summarization or image captioning model.
+• Use a third-party API or an open-source model to handle small-scale transformations first.
+
+b. Integration Steps
+• Create or use an existing microservice that can receive uploaded content and return the “enhanced” output (e.g., a short descriptive narrative of a photo, or noise reduction in an audio clip).
+• Connect the AI microservice to the main platform for a seamless upload → AI processing → result pipeline.
+
+c. Scalability & Next Steps
+• For later expansions, consider refining the narrative generation steps or adding more advanced features (e.g., style-based generation, multi-lingual support).
+• Optimize for performance (caching, model fine-tuning).
+
+Basic Sharing Capabilities
+a. Sharing Options
+• Determine how capsules can be shared—e.g., a link with access control (token-based or signature-based).
+• Consider the user flow for “public” vs. “private” sharing.
+
+b. Access Control
+• For a Web3 approach, consider NFT-based ownership or a standard token gating approach (only certain wallet addresses can view).
+• Alternatively, generate unique share links that reference the IPFS hash with optional encryption keys.
+
+c. UI/UX Implementation
+• Add a “Share” button next to each memory capsule.
+• Allow the user to copy the link or share it directly to social media.
+• Provide clear indications if a capsule is public or private.
+
+Mobile-Responsive Interface
+a. Mobile-First Layouts
+• Ensure the React components use responsive layouts (e.g., Tailwind CSS grid, flex utilities).
+• Test on common screen sizes to confirm usability.
+
+b. Wallet & Web3 Interactions on Mobile
+• Validate that wallet connectivity (e.g., WalletConnect/MetaMask mobile) works seamlessly.
+• Ensure uploading photos, text, and audio from a mobile device is a smooth experience.
+
+c. Testing & Iteration
+• Regularly run tests on real devices and mobile simulators.
+• Optimize for performance on slower connections.
+
+PHASED PROJECT TIMELINE (Suggested)
+• Phase 1 (Week 1–2):
+– Implement basic UI with wallet integration.
+– Set up IPFS node or pinning service.
+– Prepare file upload flow (photos, text, audio).
+
+• Phase 2 (Week 3–4):
+– Integrate IPFS uploads in the upload flow.
+– Set up the AI microservice (initial minimal AI functionality like caption generation).
+– Integrate AI pipeline with upload.
+
+• Phase 3 (Week 5–6):
+– Develop basic sharing features (link generation or token gating).
+– Implement a mobile-responsive layout.
+– Conduct end-to-end testing on both desktop and mobile.
+
+• Phase 4 (Week 7–8):
+– Bug fixing, performance optimizations, user acceptance testing.
+– Prepare documentation for each major feature.
+– Launch MVP to select testers or early adopters.
+
+This roadmap provides a structured approach to delivering the must-have (P0) features, ensuring a smooth user experience, secure ownership via Web3 integrations, and the foundation of AI-powered memory enhancement. After completing these priorities, the team can proceed to P1 and P2 features outlined in the PRD.
+
