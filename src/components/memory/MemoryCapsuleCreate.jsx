@@ -9,7 +9,8 @@ function MemoryCapsuleCreate() {
   const [uploading, setUploading] = useState(false)
 
   const handleFileChange = (e) => {
-    setFiles(Array.from(e.target.files))
+    const selectedFiles = Array.from(e.target.files)
+    setFiles(selectedFiles)
   }
 
   const handleSubmit = async (e) => {
@@ -17,14 +18,12 @@ function MemoryCapsuleCreate() {
     setUploading(true)
 
     try {
-      const uploadResults = await uploadToIPFS(files)
-      console.log('Upload successful:', uploadResults)
+      const results = await uploadToIPFS(files)
+      console.log('Upload successful:', results)
       
-      // Clear form after successful upload
       setTitle('')
       setDescription('')
       setFiles([])
-      
     } catch (error) {
       console.error('Upload failed:', error)
     } finally {

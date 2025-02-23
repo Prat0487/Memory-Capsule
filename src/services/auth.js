@@ -1,11 +1,16 @@
-import { Web3Storage } from 'web3.storage'
-
-const DID_KEY = 'did:key:z6Mkg6qCyxke5eBMitJkp6sYtBveayAsaEstmaTrXvt4xUQN'
-
+// Basic authentication service without web3.storage dependencies
 export const initializeStorage = () => {
-  const client = new Web3Storage({ 
-    token: process.env.VITE_WEB3_STORAGE_TOKEN,
-    did: DID_KEY
-  })
-  return client
+  // Initialize IPFS client configuration if needed
+  const config = {
+    host: 'ipfs.infura.io',
+    port: 5001,
+    protocol: 'https'
+  }
+  return config
+}
+
+// Add any additional auth methods needed for your app
+export const verifyAccess = () => {
+  // Implement your access control logic here
+  return true
 }
