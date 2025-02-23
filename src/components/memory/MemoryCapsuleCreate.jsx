@@ -7,9 +7,11 @@ function MemoryCapsuleCreate() {
   const [description, setDescription] = useState('')
   const [files, setFiles] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files)
+    console.log('Selected files:', selectedFiles)
     setFiles(selectedFiles)
   }
 
@@ -18,14 +20,33 @@ function MemoryCapsuleCreate() {
     setUploading(true)
 
     try {
-      const results = await uploadToIPFS(files)
-      console.log('Upload successful:', results)
+      // Create memory metadata
+      const memoryData = {
+        title,
+        description,
+        timestamp: new Date().toISOString()
+      }
+
+      // Upload files to Pinata
+      const results = await uploadToIPFS(files, (progress) => {
+        setUploadProgress(progress)
+      })
+
+      // Combine memory data with file results
+      const memory = {
+        ...memoryData,
+        files: results
+      }
+
+      console.log('Memory created:', memory)
       
+      // Reset form
       setTitle('')
       setDescription('')
       setFiles([])
+      setUploadProgress(0)
     } catch (error) {
-      console.error('Upload failed:', error)
+      console.error('Failed to create memory:', error)
     } finally {
       setUploading(false)
     }
@@ -67,6 +88,15 @@ function MemoryCapsuleCreate() {
             accept="image/*,video/*,audio/*"
           />
         </div>
+
+        {uploadProgress > 0 && (
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div 
+              className="bg-blue-600 h-2.5 rounded-full" 
+              style={{ width: `${uploadProgress}%` }}
+            ></div>
+          </div>
+        )}
 
         <button
           type="submit"
