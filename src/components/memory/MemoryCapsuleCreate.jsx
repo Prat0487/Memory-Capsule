@@ -8,6 +8,7 @@ function MemoryCapsuleCreate() {
   const [files, setFiles] = useState([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploadedFiles, setUploadedFiles] = useState([])
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files)
@@ -20,33 +21,17 @@ function MemoryCapsuleCreate() {
     setUploading(true)
 
     try {
-      // Create memory metadata
-      const memoryData = {
-        title,
-        description,
-        timestamp: new Date().toISOString()
-      }
-
-      // Upload files to Pinata
-      const results = await uploadToIPFS(files, (progress) => {
-        setUploadProgress(progress)
-      })
-
-      // Combine memory data with file results
-      const memory = {
-        ...memoryData,
-        files: results
-      }
-
-      console.log('Memory created:', memory)
+      const results = await uploadToIPFS(files)
+      setUploadedFiles(results) // Store upload results
       
-      // Reset form
+      console.log('Upload successful:', results)
+      
+      // Clear form but keep uploaded files visible
       setTitle('')
       setDescription('')
       setFiles([])
-      setUploadProgress(0)
     } catch (error) {
-      console.error('Failed to create memory:', error)
+      console.error('Upload failed:', error)
     } finally {
       setUploading(false)
     }
@@ -106,8 +91,28 @@ function MemoryCapsuleCreate() {
           {uploading ? 'Creating Memory...' : 'Create Memory'}
         </button>
       </form>
+      
+      {uploadedFiles.length > 0 && (
+        <div className="mt-6 border-t pt-4">
+          <h3 className="text-lg font-semibold mb-2">Uploaded Files:</h3>
+          <div className="space-y-2">
+            {uploadedFiles.map((file, index) => (
+              <div key={index} className="flex flex-col">
+                <span className="font-medium">{file.name}</span>
+                <a 
+                  href={file.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline text-sm truncate"
+                >
+                  {file.url}
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-
 export default MemoryCapsuleCreate
