@@ -1,40 +1,36 @@
 // src/components/auth/WalletConnect.jsx
-import React, { useState } from 'react';
-import { useUser } from '../../context/UserContext';
+import React, { useEffect } from 'react'
+import { useUser } from '../../context/UserContext'
 
 function WalletConnect() {
-  const [isConnecting, setIsConnecting] = useState(false);
-  const { connectWallet, user } = useUser();
+  const { user, loading, connectWallet, checkConnection } = useUser()
 
-  const handleConnect = async () => {
-    setIsConnecting(true);
-    try {
-      await connectWallet();
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-    } finally {
-      setIsConnecting(false);
-    }
-  };
+  useEffect(() => {
+    checkConnection()
+  }, [])
 
   return (
-    <div className="flex flex-col items-center p-4">
-      {!user ? (
-        <button
-          onClick={handleConnect}
-          disabled={isConnecting}
-          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
-        >
-          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-        </button>
-      ) : (
-        <div className="text-gray-700">
-          <p className="font-medium">Connected Wallet</p>
-          <p className="text-sm truncate">{user.address}</p>
+    <div className="flex items-center gap-4">
+      {user ? (
+        <div className="flex flex-col items-end">
+          <span className="text-sm font-medium">
+            {user.address.slice(0, 6)}...{user.address.slice(-4)}
+          </span>
+          <span className="text-xs text-gray-500">
+            {Number(user.balance).toFixed(4)} ETH
+          </span>
         </div>
+      ) : (
+        <button
+          onClick={connectWallet}
+          disabled={loading}
+          className="bg-gradient-to-r from-primary to-secondary text-white px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50"
+        >
+          {loading ? 'Connecting...' : 'Connect Wallet'}
+        </button>
       )}
     </div>
-  );
+  )
 }
 
-export default WalletConnect;
+export default WalletConnect

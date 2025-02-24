@@ -1,40 +1,74 @@
 // src/context/UserContext.jsx
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { connectWallet, verifyWalletConnection } from '../services/wallet'
 
-const UserContext = createContext();
+const UserContext = createContext()
 
 export function UserProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [providerReady, setProviderReady] = useState(false)
 
-  const connectWallet = async () => {
-    // Mock wallet connection
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockUser = {
-          address: '0x' + Math.random().toString(36).substring(2, 40),
-          balance: '1.5 ETH'
-        };
-        setUser(mockUser);
-        resolve(mockUser);
-      }, 1000);
-    });
-  };
+  useEffect(() => {
+    const checkProvider = () => {
+      if (window.ethereum) {
+        setProviderReady(true)
+        checkConnection()
+      }
+    }
+    
+    checkProvider()
+    window.addEventListener('ethereum#initialized', checkProvider)
+    
+    return () => {
+      window.removeEventListener('ethereum#initialized', checkProvider)
+    }
+  }, [])
 
-  const disconnectWallet = () => {
-    setUser(null);
-  };
+  const handleConnect = async () => {
+    if (!providerReady) {
+      alert("Please install MetaMask to connect wallet")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const walletData = await connectWallet()
+      setUser({
+        address: walletData.address,
+        balance: walletData.balance,
+        connected: true
+      })
+    } catch (error) {
+      console.error('Wallet connection failed:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const checkConnection = async () => {
+    if (providerReady) {
+      const isConnected = await verifyWalletConnection()
+      if (isConnected) {
+        handleConnect()
+      }
+    }
+  }
 
   return (
-    <UserContext.Provider value={{ user, connectWallet, disconnectWallet }}>
+    <UserContext.Provider value={{ 
+      user, 
+      loading,
+      providerReady,
+      connectWallet: handleConnect,
+      checkConnection 
+    }}>
       {children}
     </UserContext.Provider>
-  );
+  )
 }
 
 export function useUser() {
-  const context = useContext(UserContext);
-  if (context === undefined) {
-    throw new Error('useUser must be used within a UserProvider');
-  }
-  return context;
+  return useContext(UserContext)
 }
