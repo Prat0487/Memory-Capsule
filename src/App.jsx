@@ -5,6 +5,8 @@ import WalletConnect from './components/auth/WalletConnect';
 import MemoryCapsuleCreate from './components/memory/MemoryCapsuleCreate';
 import MemoryCapsuleView from './components/memory/MemoryCapsuleView';
 
+import { CreateMemory } from './components/CreateMemory'
+
 function App() {
   return (
     <UserProvider>
@@ -18,11 +20,8 @@ function App() {
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-6 py-12">
-          <div className="space-y-12">
-            <MemoryCapsuleCreate className="card-hover glass-effect rounded-xl p-6" />
-            <MemoryCapsuleView className="card-hover glass-effect rounded-xl p-6" />
-          </div>
+        <main className="container mx-auto py-8">
+          <CreateMemory />
         </main>
 
         <footer className="glass-effect mt-auto">
@@ -35,5 +34,4 @@ function App() {
       </div>
     </UserProvider>
   );
-}
-export default App;
+}export default App;
