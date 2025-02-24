@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useUser } from '../context/UserContext'
 import { MemoryService } from '../services/memoryService'
 
-export function CreateMemory() {
+export function CreateMemory({ onMemoryCreated }) {
   const { user, connectWallet } = useUser()
   const [files, setFiles] = useState([])
   const [title, setTitle] = useState('')
@@ -33,10 +33,11 @@ export function CreateMemory() {
         ownerAddress: user.address
       })
       
-      // Clear form
+      // Clear form and refresh gallery
       setFiles([])
       setTitle('')
       setDescription('')
+      onMemoryCreated() // Trigger refresh
       
       console.log('Memory created:', memory)
     } catch (error) {

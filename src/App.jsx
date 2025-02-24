@@ -1,13 +1,17 @@
 // src/App.jsx
-import React from 'react';
-import { UserProvider } from './context/UserContext';
-import WalletConnect from './components/auth/WalletConnect';
-import MemoryCapsuleCreate from './components/memory/MemoryCapsuleCreate';
-import MemoryCapsuleView from './components/memory/MemoryCapsuleView';
-
+import React, { useState } from 'react'
+import { UserProvider } from './context/UserContext'
+import WalletConnect from './components/auth/WalletConnect'
 import { CreateMemory } from './components/CreateMemory'
+import { MemoryGallery } from './components/MemoryGallery'
 
 function App() {
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  const handleMemoryCreated = () => {
+    setRefreshTrigger(prev => prev + 1)
+  }
+
   return (
     <UserProvider>
       <div className="min-h-screen bg-background">
@@ -21,7 +25,8 @@ function App() {
         </header>
 
         <main className="container mx-auto py-8">
-          <CreateMemory />
+          <CreateMemory onMemoryCreated={handleMemoryCreated} />
+          <MemoryGallery key={refreshTrigger} />
         </main>
 
         <footer className="glass-effect mt-auto">
@@ -33,5 +38,7 @@ function App() {
         </footer>
       </div>
     </UserProvider>
-  );
-}export default App;
+  )
+}
+
+export default App
