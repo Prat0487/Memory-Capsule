@@ -3,7 +3,7 @@ import { useUser } from '../context/UserContext'
 import { MemoryService } from '../services/memoryService'
 
 export function CreateMemory() {
-  const { user } = useUser()
+  const { user, connectWallet } = useUser()
   const [files, setFiles] = useState([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -12,12 +12,18 @@ export function CreateMemory() {
   const memoryService = new MemoryService()
 
   const handleFileChange = (e) => {
-    // Convert FileList to Array
     setFiles(Array.from(e.target.files))
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Check if wallet is connected
+    if (!user) {
+      await connectWallet()
+      return
+    }
+    
     setLoading(true)
     
     try {
@@ -85,7 +91,7 @@ export function CreateMemory() {
         disabled={loading || files.length === 0}
         className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:opacity-50"
       >
-        {loading ? 'Creating...' : 'Create Memory'}
+        {!user ? 'Connect Wallet' : loading ? 'Creating...' : 'Create Memory'}
       </button>
     </form>
   )
