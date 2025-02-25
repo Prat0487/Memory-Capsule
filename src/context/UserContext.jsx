@@ -55,10 +55,9 @@ export function UserProvider({ children }) {
       }
     }
   }
-
   return (
     <UserContext.Provider value={{ 
-      user, 
+      currentUser: user,  // Rename to currentUser
       loading,
       providerReady,
       connectWallet: handleConnect,
