@@ -70,7 +70,7 @@ app.listen(3000, () => {
   console.log('Server running on port 3000')
   console.log('Supabase connection initialized')
 })
-
+/*
 CREATE TABLE memories (
     id SERIAL PRIMARY KEY,
     title TEXT NOT NULL,
@@ -81,3 +81,4 @@ CREATE TABLE memories (
     url TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+*/
