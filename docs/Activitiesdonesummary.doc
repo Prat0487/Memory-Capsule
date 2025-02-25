@@ -1,0 +1,8 @@
+• Set up a React + Vite project with Tailwind CSS for the frontend.
+• Created a basic wallet connection logic (using ethers.js/MetaMask).
+• Implemented IPFS uploads using Pinata (with an ipfs.js service).
+• Created a simple Node/Express server to handle memories creation and retrieval.
+• Added Supabase integration for storing metadata in a “memories” table.
+• Dealt with schema mismatches (ownerAddress vs. owneraddress, ipfsHash casing, etc.).
+• Resolved multiple 500 errors by aligning column names in the database with the JSON payload.
+• Established a minimal flow: upload file to IPFS → store metadata in Supabase → fetch memories.
