@@ -1,13 +1,14 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useUser } from '../context/UserContext'
 import { MemoryService } from '../services/memoryService'
 
 export function CreateMemory({ onMemoryCreated }) {
-  const { user, connectWallet } = useUser()
+  const { currentUser, connectWallet } = useUser()
   const [files, setFiles] = useState([])
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
+  const [pendingSubmission, setPendingSubmission] = useState(false)
   
   const memoryService = new MemoryService()
 
@@ -15,14 +16,16 @@ export function CreateMemory({ onMemoryCreated }) {
     setFiles(Array.from(e.target.files))
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
-    // Check if wallet is connected
-    if (!user) {
-      await connectWallet()
-      return
+  useEffect(() => {
+    if (pendingSubmission && currentUser?.address) {
+      console.log('Wallet now connected, continuing with memory creation...')
+      createMemory()
+      setPendingSubmission(false)
     }
+  }, [currentUser, pendingSubmission])
+
+  const createMemory = async () => {
+    if (!currentUser?.address) return
     
     setLoading(true)
     
@@ -30,14 +33,13 @@ export function CreateMemory({ onMemoryCreated }) {
       const memory = await memoryService.createMemory(files, {
         title,
         description,
-        ownerAddress: user.address
+        ownerAddress: currentUser.address
       })
       
-      // Clear form and refresh gallery
       setFiles([])
       setTitle('')
       setDescription('')
-      onMemoryCreated() // Trigger refresh
+      onMemoryCreated()
       
       console.log('Memory created:', memory)
     } catch (error) {
@@ -45,6 +47,19 @@ export function CreateMemory({ onMemoryCreated }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    
+    if (!currentUser?.address) {
+      console.log('No wallet connected, marking submission as pending and connecting wallet')
+      setPendingSubmission(true)
+      await connectWallet()
+      return
+    }
+    
+    createMemory()
   }
 
   return (
@@ -92,7 +107,7 @@ export function CreateMemory({ onMemoryCreated }) {
         disabled={loading || files.length === 0}
         className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:opacity-50"
       >
-        {!user ? 'Connect Wallet' : loading ? 'Creating...' : 'Create Memory'}
+        {!currentUser ? 'Connect Wallet' : loading ? 'Creating...' : 'Create Memory'}
       </button>
     </form>
   )
