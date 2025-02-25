@@ -18,9 +18,11 @@ export function MemoryCard({ memory }) {
     trackMemoryShare(memory.id)
   }
 
-  // Debug log to identify file structure
-  console.log('Memory data:', memory)
-  console.log('Files data:', memory.files || memory.ipfsHash || 'No file data found')
+  const handleView = () => {
+    if (!memory?.id) return
+    const viewUrl = `${window.location.origin}/shared-memory/${memory.id}`
+    window.open(viewUrl, '_blank')
+  }
 
   // Helper function to render files or IPFS content
   const renderMedia = () => {
@@ -34,7 +36,8 @@ export function MemoryCard({ memory }) {
                 <img 
                   src={file.url} 
                   alt={file.name || 'Memory image'} 
-                  className="w-full h-48 object-cover rounded-md shadow-sm hover:opacity-95 transition-opacity" 
+                  className="w-full rounded-md object-contain max-h-72" 
+                  style={{ maxWidth: '100%' }}
                 />
               ) : (
                 <a 
@@ -60,7 +63,8 @@ export function MemoryCard({ memory }) {
           <img 
             src={ipfsUrl} 
             alt="Memory content" 
-            className="w-full rounded-md max-h-48 object-cover" 
+            className="w-full rounded-md object-contain max-h-72" 
+            style={{ maxWidth: '100%' }}
           />
         </div>
       )
@@ -73,7 +77,8 @@ export function MemoryCard({ memory }) {
           <img 
             src={memory.imageUrl} 
             alt="Memory content" 
-            className="w-full rounded-md max-h-48 object-cover" 
+            className="w-full rounded-md object-contain max-h-72" 
+            style={{ maxWidth: '100%' }}
           />
         </div>
       )
@@ -105,10 +110,10 @@ export function MemoryCard({ memory }) {
           </button>
 
           <button
-            onClick={() => alert('Test button clicked!')}
-            className="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded"
+            onClick={handleView}
+            className="bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded"
           >
-            TEST BUTTON
+            View Full Memory
           </button>
         </div>
       </div>
