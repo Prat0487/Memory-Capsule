@@ -1,0 +1,125 @@
+version: '3.9'
+
+services:
+  memory-service:
+    build:
+      context: ./services/memory-service
+      dockerfile: Dockerfile
+    container_name: memory_service
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+    volumes:
+      - ./services/memory-service:/app
+      - /app/node_modules
+    depends_on:
+      - blockchain-service
+      - ipfs-service
+      - ai-service
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+  blockchain-service:
+    build:
+      context: ./services/blockchain-service
+      dockerfile: Dockerfile
+    container_name: blockchain_service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+    volumes:
+      - ./services/blockchain-service:/app
+      - /app/node_modules
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+  ipfs-service:
+    build:
+      context: ./services/ipfs-service
+      dockerfile: Dockerfile
+    container_name: ipfs_service
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - PINATA_API_KEY=${PINATA_API_KEY}
+      - PINATA_SECRET=${PINATA_SECRET}
+      - PINATA_JWT=${PINATA_JWT}
+    volumes:
+      - ./services/ipfs-service:/app
+      - /app/node_modules
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: ai_service
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+    volumes:
+      - ./services/ai-service:/app
+      - /app/node_modules
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: auth_service
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - PORT=3004
+      - PINATA_JWT=${PINATA_JWT}
+    volumes:
+      - ./services/auth-service:/app
+      - /app/node_modules
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3000:80"  # Using port 3000 instead of 8080
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:3000
+      - VITE_AUTH_URL=http://localhost:3004
+    volumes:
+      - ./services/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - memory-service
+      - auth-service
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+networks:
+  memory-capsule-network:
+    driver: bridge
