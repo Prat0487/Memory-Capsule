@@ -79,10 +79,11 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
         title: title || "Untitled Memory", 
         description: description || "", 
         created_at: date || new Date().toISOString(), 
-        ipfsHash: ipfsHash || "placeholder-hash", 
-        url: fileUrls || [],  
+        ipfsHash: ipfsHash || "placeholder-hash",
+        url: fileUrls || [],
         ownerAddress: ownerAddress || "anonymous",
-        narrative: req.body.narrativeText || ""
+        narrative: req.body.narrativeText || "",
+        type: "standard"
       }])
       .select();
       
