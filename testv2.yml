@@ -21,9 +21,6 @@ services:
     container_name: memory-service
     ports:
       - "3000:3000"
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     environment:
       - PORT=3000
       - SUPABASE_URL=https://lsijhlxvtztpjdvyjnwl.supabase.co
@@ -34,6 +31,7 @@ services:
     networks:
       - memory-capsule-network
     restart: unless-stopped
+
   auth-service:
     build: ./services/auth-service
     container_name: auth-service

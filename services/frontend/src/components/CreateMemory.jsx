@@ -11,45 +11,69 @@ export function CreateMemory({ onMemoryCreated }) {
   const [pendingSubmission, setPendingSubmission] = useState(false)
   
   const memoryService = new MemoryService()
-
-  const handleFileChange = (e) => {
-    setFiles(Array.from(e.target.files))
-  }
-
-  useEffect(() => {
-    if (pendingSubmission && currentUser?.address) {
-      console.log('Wallet now connected, continuing with memory creation...')
-      createMemory()
-      setPendingSubmission(false)
+    const handleFileChange = (e) => {
+      setFiles(Array.from(e.target.files))
     }
-  }, [currentUser, pendingSubmission])
 
-  const createMemory = async () => {
-    if (!currentUser?.address) return
+    useEffect(() => {
+      if (pendingSubmission && currentUser?.address) {
+        console.log('Wallet now connected, continuing with memory creation...')
+        createMemory()
+        setPendingSubmission(false)
+      }
+    }, [currentUser, pendingSubmission])
+
+    const createMemory = async () => {
+      if (!currentUser?.address) return
     
-    setLoading(true)
+      setLoading(true)
     
-    try {
-      const memory = await memoryService.createMemory(files, {
+      try {
+        // Ensure memoryService is properly configured to send all form data
+        const memoryData = {
+          title,
+          description,
+          ownerAddress: currentUser.address,
+          date: new Date().toISOString(),
+          // Any other fields you need to include
+        }
+      
+        console.log('Sending memory data:', memoryData)
+      
+        const memory = await memoryService.createMemory(files, memoryData)
+      
+        setFiles([])
+        setTitle('')
+        setDescription('')
+        onMemoryCreated()
+      
+        console.log('Memory created:', memory)
+      } catch (error) {
+        console.error('Failed to create memory:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    const handleSubmit = async (e) => {
+      e.preventDefault()
+    
+      if (!currentUser?.address) {
+        console.log('No wallet connected, marking submission as pending and connecting wallet')
+        setPendingSubmission(true)
+        await connectWallet()
+        return
+      }
+    
+      // Add validation and logging before submission
+      console.log('Submitting form with data:', {
         title,
         description,
-        ownerAddress: currentUser.address
+        files: files.length > 0 ? `${files.length} files selected` : 'No files'
       })
-      
-      setFiles([])
-      setTitle('')
-      setDescription('')
-      onMemoryCreated()
-      
-      console.log('Memory created:', memory)
-    } catch (error) {
-      console.error('Failed to create memory:', error)
-    } finally {
-      setLoading(false)
+    
+      createMemory()
     }
-  }
-
-  const handleSubmit = async (e) => {
     e.preventDefault()
     
     if (!currentUser?.address) {

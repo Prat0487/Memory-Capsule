@@ -1,6 +1,7 @@
 {
   "name": "memory-service",
   "version": "1.0.0",
+  "description": "Memory management service for Memory Capsule",
   "type": "module",
   "main": "src/index.js",
   "scripts": {
@@ -8,16 +9,12 @@
     "dev": "nodemon src/index.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.26.0",
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "body-parser": "^1.20.2",
-    "@supabase/supabase-js": "^2.47.0",
-    "axios": "^1.6.2",
-    "dotenv": "^16.3.1"
+    "axios": "^1.4.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^2.0.22"
   }
 }
-
-

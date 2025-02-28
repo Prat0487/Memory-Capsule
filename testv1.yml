@@ -1,29 +1,10 @@
 version: '3.8'
 
 services:
-  frontend:
-    build: ./services/frontend
-    container_name: frontend
-    ports:
-      - "3006:3006"
-    environment:
-      - VITE_API_URL=http://memory-service:3000
-      - VITE_AUTH_URL=http://auth-service:3001
-    depends_on:
-      - memory-service
-      - auth-service
-    networks:
-      - memory-capsule-network
-    restart: unless-stopped
-
   memory-service:
     build: ./services/memory-service
-    container_name: memory-service
     ports:
       - "3000:3000"
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     environment:
       - PORT=3000
       - SUPABASE_URL=https://lsijhlxvtztpjdvyjnwl.supabase.co
@@ -34,18 +15,17 @@ services:
     networks:
       - memory-capsule-network
     restart: unless-stopped
-  auth-service:
-    build: ./services/auth-service
-    container_name: auth-service
+
+  blockchain-service:
+    build: ./services/blockchain-service
     ports:
-      - "3001:3001"
+      - "3004:3004"
     networks:
       - memory-capsule-network
     restart: unless-stopped
 
   ipfs-service:
     build: ./services/ipfs-service
-    container_name: ipfs-service
     ports:
       - "3002:3002"
     environment:
@@ -57,18 +37,30 @@ services:
 
   ai-service:
     build: ./services/ai-service
-    container_name: ai-service
     ports:
       - "3003:3003"
     networks:
       - memory-capsule-network
     restart: unless-stopped
 
-  blockchain-service:
-    build: ./services/blockchain-service
-    container_name: blockchain-service
+  auth-service:
+    build: ./services/auth-service
     ports:
-      - "3004:3004"
+      - "3001:3001"
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+  frontend:
+    build: ./services/frontend
+    ports:
+      - "3006:3006"
+    environment:
+      - VITE_API_URL=http://memory-service:3000
+      - VITE_AUTH_URL=http://auth-service:3001
+    depends_on:
+      - memory-service
+      - auth-service
     networks:
       - memory-capsule-network
     restart: unless-stopped

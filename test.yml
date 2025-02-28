@@ -105,7 +105,7 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     ports:
-      - "3000:80"  # Using port 3000 instead of 8080
+      - "3006:80"
     environment:
       - NODE_ENV=development
       - VITE_API_URL=http://localhost:3000
