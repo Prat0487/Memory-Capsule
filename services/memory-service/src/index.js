@@ -127,9 +127,19 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
 app.get('/memories/:address', async (req, res) => {
   try {
     const { address } = req.params;
-    const memories = await getMemories(address);
-    res.json({ success: true, memories });
+    
+    // Fetch memories directly from Supabase
+    const { data, error } = await supabase
+      .from('memories')
+      .select('*')
+      .eq('ownerAddress', address)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    
+    res.json({ success: true, memories: data });
   } catch (error) {
+    console.error('Error fetching memories:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
