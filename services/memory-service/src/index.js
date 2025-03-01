@@ -30,61 +30,61 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Update your endpoint to use multer
 app.post('/memories/create', upload.array('files'), async (req, res) => {
   try {
     console.log('Request fields:', req.body);
     console.log('Uploaded files:', req.files ? req.files.length : 'none');
     
-    const { title, description, date, ownerAddress } = req.body;
+    const { title, description, date, owner } = req.body;
     const files = req.files || [];
     
-    // Now you can access all fields from req.body and files from req.files
-    
-    // Process files and continue with your existing logic...
-    let storageResponse;
     let ipfsHash = null;
-    let fileUrls = [];
+    let fileUrl = "";  // Note: singular, not plural
     
+    // Process files if they exist
     if (files.length > 0) {
       try {
-        // Modify how you send files to the IPFS service
-        storageResponse = await axios.post('http://ipfs-service:3002/upload', { 
+        // Call IPFS service with properly encoded files
+        const storageResponse = await axios.post('http://ipfs-service:3002/upload', { 
           files: files.map(file => ({
-            buffer: file.buffer,
+            buffer: file.buffer.toString('base64'),
             originalname: file.originalname,
             mimetype: file.mimetype
           }))
         });
+        
+        console.log("IPFS response:", storageResponse.data);
+        
+        // Extract data using correct field names
         ipfsHash = storageResponse.data.ipfsHash;
-        fileUrls = storageResponse.data.fileUrls;
+        // Take the first URL if multiple files were uploaded
+        fileUrl = storageResponse.data.fileUrls && storageResponse.data.fileUrls.length > 0 
+          ? storageResponse.data.fileUrls[0] 
+          : "";
       } catch (uploadError) {
-        console.error("File upload error:", uploadError.message);
+        console.error("File upload error:", uploadError);
       }
     }
     
-    // Add this before your database insert
-    if (!ipfsHash) {
-      return res.status(400).json({
-        success: false,
-        error: 'Missing required field: ipfsHash',
-        details: 'A valid IPFS hash is required for memory creation'
-      });
-    }
-
-    // 3. Store in database with proper error handling
+    // Create record with exact column names matching Supabase schema
+    const memoryData = { 
+      title: title || "Untitled Memory", 
+      description: description || "", 
+      created_at: date || new Date().toISOString(), 
+      ipfsHash: ipfsHash,  // Correct camelCase column name
+      url: fileUrl,        // Singular field as per schema
+      ownerAddress: owner, // Correct camelCase column name
+      narrative: req.body.narrativeText || "",
+      type: "standard",
+      sharecount: 0        // Initialize share count
+    };
+    
+    console.log("Inserting into Supabase:", memoryData);
+    
+    // Execute database insertion with correct column mapping
     const { data, error } = await supabase
       .from('memories')
-      .insert([{ 
-        title: title || "Untitled Memory", 
-        description: description || "", 
-        created_at: date || new Date().toISOString(), 
-        ipfsHash: ipfsHash || "placeholder-hash",
-        url: fileUrls || [],
-        ownerAddress: ownerAddress || "anonymous",
-        narrative: req.body.narrativeText || "",
-        type: "standard"
-      }])
+      .insert([memoryData])
       .select();
       
     if (error) {
@@ -104,7 +104,27 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
       details: error.message
     });
   }
-});app.get('/memories/:address', async (req, res) => {
+});
+app.post('/memories/create', upload.array('files'), async (req, res) => {
+  try {
+    // All your existing POST handler code...
+    
+    res.status(201).json({
+      success: true,
+      memory: data[0]
+    });
+  } catch (error) {
+    console.error('Memory creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create memory',
+      details: error.message
+    });
+  }
+}); // Single closing brace for the POST endpoint
+
+// Properly spaced next route definition
+app.get('/memories/:address', async (req, res) => {
   try {
     const { address } = req.params;
     const memories = await getMemories(address);
@@ -113,7 +133,6 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
-
 // Create a memory by coordinating with other services
 const createMemory = async (memoryData) => {
   try {
