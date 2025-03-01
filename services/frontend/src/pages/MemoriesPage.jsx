@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useWallet } from '../hooks/useWallet';
 import axios from 'axios';
-import MemoryCard from '../components/MemoryCard';
-import { motion } from 'framer-motion';
+import { MemoryCard } from '../components/MemoryCard';import { motion } from 'framer-motion';
 
 function MemoriesPage() {
   const { account, connectWallet } = useWallet();
