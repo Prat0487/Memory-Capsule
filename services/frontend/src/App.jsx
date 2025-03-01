@@ -1,7 +1,7 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import HomePage from './pages/HomePage'
-import MemoriesPage from './pages/MemoriesPage'
+import { MemoriesPage } from './pages/MemoriesPage'
 import CreateMemoryPage from './pages/CreateMemoryPage'
 import MemoryDetailPage from './pages/MemoryDetailPage'
 import Navigation from './components/Navigation'
