@@ -57,12 +57,10 @@ export function MemoryCard({ memory, forceRefresh = 0 }) {
           </div>
         )}
         <div>
-          <p>Debug URL: {JSON.stringify(memory.url)}</p>
           <img 
-            src={Array.isArray(memory.url) ? memory.url[0] : memory.url} 
+            src={Array.isArray(memory.url) ? memory.url[0] : memory.url}
             alt={memory.title} 
-            onError={(e) => console.error("Image loading error", e)}
-            className={`w-full h-full object-cover ${imageError ? 'opacity-20' : ''}`}
+            className="w-full h-48 object-cover rounded-t-lg" 
           />
         </div>
       </div>
