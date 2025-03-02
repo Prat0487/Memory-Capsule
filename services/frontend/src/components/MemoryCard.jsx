@@ -49,37 +49,32 @@ export function MemoryCard({ memory, forceRefresh = 0 }) {
   }
   
   return (
-    <div className="memory-card rounded-lg shadow-md overflow-hidden bg-white">
-      <div className="memory-image h-48 overflow-hidden relative">
-        {imageError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500 text-sm">
-            <p>Content loading from IPFS...</p>
-          </div>
-        )}
-        <div>
-          <img 
-            src={Array.isArray(memory.url) ? memory.url[0] : memory.url}
-            alt={memory.title} 
-            className="w-full h-48 object-cover rounded-t-lg" 
-          />
-        </div>
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden transition-all hover:shadow-xl">
+      {/* Image container with proper aspect ratio */}
+      <div className="relative aspect-video bg-gray-100">
+        <img 
+          src={Array.isArray(memory.url) ? memory.url[0] : memory.url}
+          alt={memory.title}
+          className="absolute w-full h-full object-cover" 
+        />
       </div>
       
+      {/* Content area */}
       <div className="p-4">
-        <h3 className="text-xl font-semibold mb-2">{memory.title}</h3>
-        <p className="text-gray-600 mb-2">{formatDate(memory.created_at)}</p>
-        <p className="text-gray-800 mb-4">{memory.description || 'No description provided'}</p>
+        <h3 className="text-xl font-semibold text-gray-800 mb-1 truncate">{memory.title}</h3>
+        <p className="text-sm text-gray-500 mb-2">{new Date(memory.created_at).toLocaleDateString()}</p>
+        <p className="text-gray-600 line-clamp-2 h-12 mb-3">{memory.description}</p>
         
-        <div className="flex justify-between">
-          <Link 
-            to={`/memories/${memory.id}`} 
-            className="text-blue-500 hover:text-blue-700"
-            state={{ memory }}
-          >
+        {/* Action buttons in a clean layout */}
+        <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
             View Details
-          </Link>
-          <button className="text-green-500 hover:text-green-700">
-            Share
+          </button>
+          <button className="text-green-600 hover:text-green-800 text-sm font-medium flex items-center">
+            <span>Share</span>
+            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
           </button>
         </div>
       </div>
