@@ -6,25 +6,20 @@ import { motion } from 'framer-motion';
 export function MemoriesPage() {
   const [memories, setMemories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key state
   const location = useLocation();
   
-  // Force refetch on navigation or memory creation
   const fetchMemories = async () => {
     setLoading(true);
     try {
-      // Get the user's address from wherever you store it (localStorage, context, etc.)
       const address = localStorage.getItem('userAddress') || '0x69592f057c1Fd4D1a82758D91acAf5D37d2639F8';
-      
-      // Fetch with a cache-busting query parameter
       const timestamp = new Date().getTime();
       const response = await fetch(`http://localhost:3000/memories/${address}?_=${timestamp}`);
       const data = await response.json();
       
       if (data.success && Array.isArray(data.memories)) {
-        // Apply proper data transformation before setting state
         const transformedMemories = data.memories.map(memory => ({
           ...memory,
-          // Ensure dates are in ISO format if they aren't already
           created_at: memory.created_at || new Date().toISOString() 
         }));
         setMemories(transformedMemories);
@@ -36,18 +31,16 @@ export function MemoriesPage() {
     }
   };
   
+  // Handle manual refresh when button is clicked
+  const handleRefresh = () => {
+    setRefreshKey(prevKey => prevKey + 1); // Increment refresh key to force re-render
+    fetchMemories(); // Fetch fresh data
+  };
+  
   useEffect(() => {
     fetchMemories();
-    
-    // Add an interval to refresh data periodically for new IPFS images to load
-    const refreshInterval = setInterval(() => {
-      fetchMemories();
-    }, 10000); // Refresh every 10 seconds
-    
-    return () => clearInterval(refreshInterval);
-  }, [location.key]); // Re-fetch when the location changes (like after creating a memory)
+  }, [location.key]); // Re-fetch when location changes
   
-  // Handle loading state with animation
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -62,7 +55,20 @@ export function MemoriesPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">My Memories</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">My Memories</h1>
+        
+        {/* Refresh button with visual feedback */}
+        <button 
+          onClick={handleRefresh}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Refresh Memories
+        </button>
+      </div>
       
       {memories.length === 0 ? (
         <div className="text-center py-8">
@@ -71,7 +77,11 @@ export function MemoriesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {memories.map(memory => (
-            <MemoryCard key={memory.id} memory={memory} />
+            <MemoryCard 
+              key={`${memory.id}-${refreshKey}`} // Keep the component key for re-rendering
+              memory={memory} // Pass the unmodified memory object
+              forceRefresh={refreshKey} // Pass refresh key as a separate prop
+            />
           ))}
         </div>
       )}

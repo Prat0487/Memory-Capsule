@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 
-export function MemoryCard({ memory }) {
-  const [imageLoaded, setImageLoaded] = useState(false)
-  const [retryCount, setRetryCount] = useState(0)
-  const [imageSrc, setImageSrc] = useState(memory.url || 'https://via.placeholder.com/300?text=Loading')
+export function MemoryCard({ memory, forceRefresh = 0 }) {
+  const [imageKey, setImageKey] = useState(forceRefresh);
+  
+  // Update internal refresh key when external force refresh occurs
+  useEffect(() => {
+    setImageKey(forceRefresh);
+  }, [forceRefresh]);
   
   // Format date using native JavaScript
   const formatDate = (dateString) => {
@@ -40,51 +43,16 @@ export function MemoryCard({ memory }) {
     }
   }
   
-  // Retry logic for new IPFS content
-  useEffect(() => {
-    if (!memory.url || imageLoaded) return
-    
-    // Check if the memory was created recently (within last hour)
-    const isNewMemory = () => {
-      try {
-        const creationTime = new Date(memory.created_at).getTime()
-        const oneHourAgo = Date.now() - (60 * 60 * 1000)
-        return creationTime > oneHourAgo
-      } catch (e) {
-        return false
-      }
-    }
-    
-    // Only apply retry logic to new memories
-    if (isNewMemory() && retryCount < 5) {
-      const retryTimer = setTimeout(() => {
-        // Force image refresh by adding timestamp parameter
-        setImageSrc(`${memory.url}?retry=${Date.now()}`)
-        setRetryCount(prevCount => prevCount + 1)
-      }, 3000 * (retryCount + 1)); // Increasing backoff timing
-      
-      return () => clearTimeout(retryTimer)
-    }
-  }, [memory.url, imageLoaded, retryCount, memory.created_at])
-  
   return (
     <div className="memory-card rounded-lg shadow-md overflow-hidden bg-white">
-      <div className="memory-image h-48 overflow-hidden relative">
-        {!imageLoaded && retryCount > 0 && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-            <p className="text-sm text-gray-500">Loading from IPFS...</p>
-          </div>
-        )}
+      <div className="memory-image h-48 overflow-hidden">
         <img 
-          src={imageSrc}
+          key={imageKey} // This forces a new image instance on refresh
+          src={memory.url || 'https://via.placeholder.com/300?text=No+Image'} 
           alt={memory.title || 'Memory'} 
           className="w-full h-full object-cover"
-          onLoad={() => setImageLoaded(true)}
           onError={(e) => {
-            // If we've exceeded retries, show error placeholder
-            if (retryCount >= 5) {
-              e.target.src = 'https://via.placeholder.com/300?text=Content+Loading'
-            }
+            e.target.src = 'https://via.placeholder.com/300?text=Error+Loading';
           }}
         />
       </div>
