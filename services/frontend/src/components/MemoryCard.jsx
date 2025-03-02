@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+
+// Base64 encoded simple gray placeholder image (lightweight, no external dependencies)
+const FALLBACK_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzU1NSI+SW1hZ2UgTG9hZGluZzwvdGV4dD48L3N2Zz4=';
 
 export function MemoryCard({ memory, forceRefresh = 0 }) {
   const [imageKey, setImageKey] = useState(forceRefresh);
+  const [imageError, setImageError] = useState(false);
   
   // Update internal refresh key when external force refresh occurs
   useEffect(() => {
     setImageKey(forceRefresh);
+    setImageError(false); // Reset error state on refresh
   }, [forceRefresh]);
   
   // Format date using native JavaScript
@@ -45,14 +50,20 @@ export function MemoryCard({ memory, forceRefresh = 0 }) {
   
   return (
     <div className="memory-card rounded-lg shadow-md overflow-hidden bg-white">
-      <div className="memory-image h-48 overflow-hidden">
+      <div className="memory-image h-48 overflow-hidden relative">
+        {imageError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 text-gray-500 text-sm">
+            <p>Content loading from IPFS...</p>
+          </div>
+        )}
         <img 
-          key={imageKey} // This forces a new image instance on refresh
-          src={memory.url || 'https://via.placeholder.com/300?text=No+Image'} 
+          key={imageKey}
+          src={memory.url || FALLBACK_IMAGE} 
           alt={memory.title || 'Memory'} 
-          className="w-full h-full object-cover"
+          className={`w-full h-full object-cover ${imageError ? 'opacity-20' : ''}`}
           onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/300?text=Error+Loading';
+            setImageError(true);
+            e.target.src = FALLBACK_IMAGE;
           }}
         />
       </div>
@@ -76,5 +87,5 @@ export function MemoryCard({ memory, forceRefresh = 0 }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

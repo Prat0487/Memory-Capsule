@@ -1,20 +1,19 @@
-import axios from 'axios'
-import FormData from 'form-data'
+import axios from 'axios';
+import FormData from 'form-data';
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
+import { Buffer } from 'buffer';
 
-const PINATA_API_KEY = '5561fc9f998e04f95ce9'
-const PINATA_SECRET = '864a554db010247820f1cbdac1f73c91f05c83296be4a00e163d4b40205d0f93'
-const JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiJlZTM2NzNhYi03ZTYzLTQwMTctYTEyZS1hNGY0ZWE2OWViYjAiLCJlbWFpbCI6InByYXJhczUucHJAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6IjU1NjFmYzlmOTk4ZTA0Zjk1Y2U5Iiwic2NvcGVkS2V5U2VjcmV0IjoiODY0YTU1NGRiMDEwMjQ3ODIwZjFjYmRhYzFmNzNjOTFmMDVjODMyOTZiZTRhMDBlMTYzZDRiNDAyMDVkMGY5MyIsImV4cCI6MTc3MTg2ODM3NH0.-RBk-aBMmRNiotYxXEUHvHr1n4y2FheBgLC3G3iIQvI'
+const PINATA_API_KEY = '5561fc9f998e04f95ce9';
+const PINATA_SECRET = '864a554db010247820f1cbdac1f73c91f05c83296be4a00e163d4b40205d0f93';
+const JWT = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySW5mb3JtYXRpb24iOnsiaWQiOiJlZTM2NzNhYi03ZTYzLTQwMTctYTEyZS1hNGY0ZWE2OWViYjAiLCJlbWFpbCI6InByYXJhczUucHJAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsInBpbl9wb2xpY3kiOnsicmVnaW9ucyI6W3siZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiRlJBMSJ9LHsiZGVzaXJlZFJlcGxpY2F0aW9uQ291bnQiOjEsImlkIjoiTllDMSJ9XSwidmVyc2lvbiI6MX0sIm1mYV9lbmFibGVkIjpmYWxzZSwic3RhdHVzIjoiQUNUSVZFIn0sImF1dGhlbnRpY2F0aW9uVHlwZSI6InNjb3BlZEtleSIsInNjb3BlZEtleUtleSI6IjU1NjFmYzlmOTk4ZTA0Zjk1Y2U5Iiwic2NvcGVkS2V5U2VjcmV0IjoiODY0YTU1NGRiMDEwMjQ3ODIwZjFjYmRhYzFmNzNjOTFmMDVjODMyOTZiZTRhMDBlMTYzZDRiNDAyMDVkMGY5MyIsImV4cCI6MTc3MTg2ODM3NH0.-RBk-aBMmRNiotYxXEUHvHr1n4y2FheBgLC3G3iIQvI';
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 
 // Middleware
 app.use(cors());
-
-// Configure express with larger payload limits
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
@@ -24,46 +23,81 @@ const upload = multer({
 
 app.post('/upload', upload.array('files'), async (req, res) => {
   try {
-    const files = req.files || req.body.files;
+    console.log("Processing upload request");
     
-    // Log request details
-    console.log(`Processing ${files ? (Array.isArray(files) ? files.length : 1) : 0} files`);
+    let filesToProcess = [];
     
-    // Process files and get IPFS hash
-    const hash = "bafybeidcznb4w3cmytkerqvmen7vgrgyesza6jqa7mxqgw2r3svgy56dm"; // Replace with actual upload logic
+    // Handle multipart form data (files directly uploaded)
+    if (req.files && req.files.length > 0) {
+      console.log(`Processing ${req.files.length} files from multipart form data`);
+      filesToProcess = req.files.map(file => ({
+        buffer: file.buffer,
+        name: file.originalname,
+        type: file.mimetype
+      }));
+    } 
+    // Handle JSON payload with base64-encoded files
+    else if (req.body && req.body.files) {
+      console.log(`Processing ${req.body.files.length} files from JSON payload`);
+      filesToProcess = req.body.files.map(file => ({
+        buffer: Buffer.from(file.buffer, 'base64'),
+        name: file.originalname,
+        type: file.mimetype
+      }));
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'No files provided in the request'
+      });
+    }
     
-    // Log successful upload
-    console.log(`Successfully uploaded file to IPFS with hash: ${hash}`);
+    // Now we have a consistent format for all files
+    const results = await uploadToIPFS(filesToProcess);
     
-    // Return PROPER response structure with hash included
+    // Use the first file as the main result if available
+    const mainResult = results[0] || { 
+      cid: "temp-" + Date.now(), 
+      url: "" 
+    };
+    
     return res.status(200).json({
       success: true,
-      ipfsHash: hash, // This critical field was missing
-      fileUrls: [`https://gateway.pinata.cloud/ipfs/${hash}`],
-      files: [{
-        originalName: req.files?.[0]?.originalname || "file.jpg",
-        ipfsHash: hash,
-        fileUrl: `https://gateway.pinata.cloud/ipfs/${hash}`
-      }]
+      ipfsHash: mainResult.cid,
+      fileUrls: results.map(r => r.url),
+      files: results.map(r => ({
+        originalName: r.name,
+        ipfsHash: r.cid,
+        fileUrl: r.url
+      }))
     });
   } catch (error) {
     console.error("IPFS upload error:", error);
-    res.status(500).json({ success: false, error: error.message });
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
   }
 });
+
 async function uploadToIPFS(files) {
+  console.log(`Starting uploadToIPFS with ${files.length} files`);
   const results = [];
   
   for (const file of files) {
     const formData = new FormData();
-    formData.append('file', file);
+    
+    // Use the buffer directly - no need for Blob in Node.js
+    formData.append('file', file.buffer, {
+      filename: file.name,
+      contentType: file.type
+    });
     
     // Add metadata with timestamp and file info
     const metadata = JSON.stringify({
       name: file.name,
       keyvalues: {
         type: file.type,
-        size: file.size,
+        size: file.buffer.length,
         uploadedAt: new Date().toISOString()
       }
     });
@@ -93,7 +127,7 @@ async function uploadToIPFS(files) {
         formData,
         {
           headers: {
-            'Content-Type': `multipart/form-data;`,
+            ...formData.getHeaders(),
             'Authorization': `Bearer ${JWT}`
           }
         }
@@ -102,7 +136,7 @@ async function uploadToIPFS(files) {
       results.push({
         name: file.name,
         type: file.type,
-        size: file.size,
+        size: file.buffer.length,
         cid: response.data.IpfsHash,
         url: `https://gateway.pinata.cloud/ipfs/${response.data.IpfsHash}`,
         timestamp: new Date().toISOString()
@@ -117,7 +151,6 @@ async function uploadToIPFS(files) {
   
   return results;
 }
-
 export function getIPFSUrl(cid) {
   return `https://gateway.pinata.cloud/ipfs/${cid}`;
 }

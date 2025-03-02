@@ -39,12 +39,12 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
     const files = req.files || [];
     
     let ipfsHash = null;
-    let fileUrl = "";  // Note: singular, not plural
+    let fileUrls = [];
     
     // Process files if they exist
     if (files.length > 0) {
       try {
-        // Call IPFS service with properly encoded files
+        // Call IPFS service
         const storageResponse = await axios.post('http://ipfs-service:3002/upload', { 
           files: files.map(file => ({
             buffer: file.buffer.toString('base64'),
@@ -53,17 +53,24 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
           }))
         });
         
-        console.log("IPFS response:", storageResponse.data);
-        
-        // Extract data using correct field names
         ipfsHash = storageResponse.data.ipfsHash;
-        // Take the first URL if multiple files were uploaded
-        fileUrl = storageResponse.data.fileUrls && storageResponse.data.fileUrls.length > 0 
-          ? storageResponse.data.fileUrls[0] 
-          : "";
+        fileUrls = storageResponse.data.fileUrls;
       } catch (uploadError) {
         console.error("File upload error:", uploadError);
       }
+    }
+    
+    // Add this validation before database insert
+    if (!ipfsHash) {
+      // If no ipfsHash, generate a temporary one using a timestamp
+      ipfsHash = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      
+      // Or reject the request entirely
+      return res.status(400).json({
+        success: false,
+        error: 'Failed to generate IPFS hash for memory content',
+        details: 'Storage service unavailable or failed to process files'
+      });
     }
     
     // Create record with exact column names matching Supabase schema
@@ -71,12 +78,12 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
       title: title || "Untitled Memory", 
       description: description || "", 
       created_at: date || new Date().toISOString(), 
-      ipfsHash: ipfsHash,  // Correct camelCase column name
-      url: fileUrl,        // Singular field as per schema
-      ownerAddress: owner, // Correct camelCase column name
+      ipfsHash: ipfsHash,  // This will never be null now
+      url: fileUrls.length > 0 ? fileUrls[0] : "",
+      ownerAddress: owner,
       narrative: req.body.narrativeText || "",
       type: "standard",
-      sharecount: 0        // Initialize share count
+      sharecount: 0
     };
     
     console.log("Inserting into Supabase:", memoryData);
