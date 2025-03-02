@@ -1,12 +1,57 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { MemoryCard } from '../components/MemoryCard';
 import { motion } from 'framer-motion';
+
+// Enhanced Memory Card component (replaces your existing MemoryCard component)
+const MemoryCard = ({ memory }) => {
+  return (
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl h-full flex flex-col">
+      {/* Image container with proper aspect ratio */}
+      <div className="relative h-48 bg-gray-100 overflow-hidden">
+        <img 
+          src={Array.isArray(memory.url) ? memory.url[0] : memory.url}
+          alt={memory.title}
+          className="absolute w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
+          onError={(e) => {
+            e.target.onerror = null;
+            e.target.src = 'https://via.placeholder.com/400x300?text=Memory';
+          }}
+        />
+      </div>
+      
+      {/* Content area */}
+      <div className="p-4 flex-grow flex flex-col">
+        <h3 className="text-xl font-semibold text-gray-800 mb-1 truncate">{memory.title}</h3>
+        <p className="text-sm text-gray-500 mb-2">
+          {new Date(memory.created_at).toLocaleDateString(undefined, { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          })}
+        </p>
+        <p className="text-gray-600 line-clamp-2 mb-3 flex-grow">{memory.description}</p>
+        
+        {/* Action buttons in a clean layout */}
+        <div className="flex justify-between items-center pt-2 border-t border-gray-100 mt-auto">
+          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium focus:outline-none transition-colors">
+            View Details
+          </button>
+          <button className="text-green-600 hover:text-green-800 text-sm font-medium flex items-center focus:outline-none transition-colors">
+            <span>Share</span>
+            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export function MemoriesPage() {
   const [memories, setMemories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0); // Add refresh key state
+  const [refreshKey, setRefreshKey] = useState(0);
   const location = useLocation();
   
   const fetchMemories = async () => {
@@ -31,37 +76,37 @@ export function MemoriesPage() {
     }
   };
   
-  // Handle manual refresh when button is clicked
   const handleRefresh = () => {
-    setRefreshKey(prevKey => prevKey + 1); // Increment refresh key to force re-render
-    fetchMemories(); // Fetch fresh data
+    setRefreshKey(prevKey => prevKey + 1);
+    fetchMemories();
   };
   
   useEffect(() => {
     fetchMemories();
-  }, [location.key]); // Re-fetch when location changes
+  }, [location.key]);
   
+  // Enhanced loading animation
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="container mx-auto px-4 py-16 flex flex-col items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"
+          className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mb-4"
         />
+        <p className="text-lg text-gray-600 animate-pulse">Loading your memories...</p>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">My Memories</h1>
+        <h1 className="text-3xl font-bold text-gray-900">My Memories</h1>
         
-        {/* Refresh button with visual feedback */}
         <button 
           onClick={handleRefresh}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-300 flex items-center shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-300"
         >
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -71,17 +116,21 @@ export function MemoriesPage() {
       </div>
       
       {memories.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-xl">You haven't created any memories yet.</p>
+        <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+          <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <p className="text-xl text-gray-600 mb-4">You haven't created any memories yet.</p>
+          <a href="/create" className="inline-block px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+            Create Your First Memory
+          </a>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {memories.map(memory => (
-            <MemoryCard 
-              key={`${memory.id}-${refreshKey}`} // Keep the component key for re-rendering
-              memory={memory} // Pass the unmodified memory object
-              forceRefresh={refreshKey} // Pass refresh key as a separate prop
-            />
+            <div key={`${memory.id}-${refreshKey}`} className="h-full">
+              <MemoryCard memory={memory} />
+            </div>
           ))}
         </div>
       )}
