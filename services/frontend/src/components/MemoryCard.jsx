@@ -56,16 +56,15 @@ export function MemoryCard({ memory, forceRefresh = 0 }) {
             <p>Content loading from IPFS...</p>
           </div>
         )}
-        <img 
-          key={imageKey}
-          src={memory.url || FALLBACK_IMAGE} 
-          alt={memory.title || 'Memory'} 
-          className={`w-full h-full object-cover ${imageError ? 'opacity-20' : ''}`}
-          onError={(e) => {
-            setImageError(true);
-            e.target.src = FALLBACK_IMAGE;
-          }}
-        />
+        <div>
+          <p>Debug URL: {JSON.stringify(memory.url)}</p>
+          <img 
+            src={Array.isArray(memory.url) ? memory.url[0] : memory.url} 
+            alt={memory.title} 
+            onError={(e) => console.error("Image loading error", e)}
+            className={`w-full h-full object-cover ${imageError ? 'opacity-20' : ''}`}
+          />
+        </div>
       </div>
       
       <div className="p-4">
