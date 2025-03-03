@@ -9,6 +9,8 @@ RUN npm install react-router-dom
 # Install react-toastify for notifications
 RUN npm install react-toastify
 
+
+
 COPY . .
 RUN npm run build
 

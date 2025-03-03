@@ -4,6 +4,9 @@ import { useWallet } from '../hooks/useWallet';
 import axios from 'axios';
 import ShareMemory from '../components/ShareMemory';
 import IpfsImage from '../components/IpfsImage';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 
 function MemoryDetailPage() {
   const { id } = useParams();
@@ -162,7 +165,15 @@ function MemoryDetailPage() {
             </Link>
             
             <button 
-              onClick={() => navigator.clipboard.writeText(`https://memory-capsule.io/shared/${memory.id}`)}
+              onClick={() => {
+                setShowShareOptions(!showShareOptions);
+                // If we're hiding the panel and it was previously showing, track as a share
+                if (showShareOptions) {
+                  // Optional: track share event
+                  navigator.clipboard.writeText(`${window.location.origin}/shared/${memory.id}`);
+                  toast.success('Link copied to clipboard!');
+                }
+              }}
               className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 flex items-center"
             >
               <svg className="h-4 w-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -171,6 +182,16 @@ function MemoryDetailPage() {
               Share Memory
             </button>
           </div>
+
+          {/* Add the share options panel */}
+          {showShareOptions && (
+            <div className="mt-4">
+              <ShareMemory memoryId={memory.id} />
+            </div>
+          )}
+
+          {/* Add this at the bottom of your App component or in a parent component */}
+          <ToastContainer position="bottom-right" autoClose={3000} />
         </div>
       </div>
     </div>
