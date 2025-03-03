@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
 import axios from 'axios';
+import ShareMemory from '../components/ShareMemory';
 
 function MemoryDetailPage() {
   const { id } = useParams();

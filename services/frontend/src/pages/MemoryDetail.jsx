@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { fetchMemoryById } from '../services/memoryService';
+import ShareMemory from './ShareMemory';
 
 export function MemoryDetail() {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Use memory from navigation state if available, otherwise fetch it
   const [memory, setMemory] = useState(location.state?.memory || null);
   const [loading, setLoading] = useState(!memory);
   const [error, setError] = useState(null);
   
   useEffect(() => {
-    // Only fetch if we don't already have the memory data
     if (!memory) {
       setLoading(true);
       fetchMemoryById(id)
@@ -87,6 +86,8 @@ export function MemoryDetail() {
           View on IPFS
         </a>
       </div>
+      
+      <ShareMemory memoryId={memory.id} />
       
       <button 
         onClick={() => navigate('/memories')}

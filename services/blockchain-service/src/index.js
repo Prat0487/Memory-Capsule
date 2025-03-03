@@ -1,10 +1,5 @@
 // src/services/blockchain.js
-import { createClient } from '@supabase/supabase-js';
-
-// Use the Supabase credentials from your existing codebase
-const supabaseUrl = 'https://lsijhlxvtztpjdvyjnwl.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from './config/supabaseClient.js';
 
 export const mintMemoryNFT = async (memoryData) => {
   const { data, error } = await supabase
@@ -70,10 +65,16 @@ export const getMemoryById = async (id) => {
 
 export const trackMemoryShare = async (memoryId) => {
   try {
-    // Skip the update operation for now since shareCount doesn't exist
-    console.log('Memory shared:', memoryId);
+    // Update the shareCount in the database
+    const { data, error } = await supabase
+      .from('memories')
+      .update({ shareCount: supabase.raw('shareCount + 1') })
+      .eq('id', memoryId)
+      .select();
     
-    // Return success even though we didn't update the count
+    if (error) throw error;
+    
+    console.log('Memory shared:', memoryId, 'New share count:', data[0]?.shareCount);
     return true;
   } catch (error) {
     console.error('Error tracking memory share:', error);

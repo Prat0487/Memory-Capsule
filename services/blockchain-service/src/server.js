@@ -1,33 +1,41 @@
-const express = require('express');
-const cors = require('cors');
-const { mintMemoryNFT, getMemories } = require('./index');
+import express from 'express';
+import cors from 'cors';
+import blockchainRoutes from './routes/blockchain.js';
+import { supabase } from './config/supabaseClient.js';
 
 const app = express();
+const PORT = process.env.PORT || 3002;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 3001;
-
-// Mint memory endpoint
-app.post('/mint', async (req, res) => {
+// Check database connection
+app.get('/api/blockchain/health', async (req, res) => {
   try {
-    const result = await mintMemoryNFT(req.body);
-    res.json({ memory: result });
+    const { data, error } = await supabase.from('memories').select('id').limit(1);
+    
+    if (error) {
+      throw error;
+    }
+    
+    res.status(200).json({ 
+      status: 'healthy',
+      database: 'connected'
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Health check failed:', error);
+    res.status(500).json({ 
+      status: 'unhealthy',
+      error: error.message 
+    });
   }
 });
 
-// Get memories endpoint
-app.get('/memories/:address', async (req, res) => {
-  try {
-    const memories = await getMemories(req.params.address);
-    res.json({ memories });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+// Routes
+app.use(blockchainRoutes);
 
+// Start server
 app.listen(PORT, () => {
-  console.log(`Blockchain Service running on port ${PORT}`);
+  console.log(`Blockchain service running on port ${PORT}`);
 });

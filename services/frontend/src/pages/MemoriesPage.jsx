@@ -2,20 +2,31 @@ import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
+import { Link, useNavigate } from 'react-router-dom';
+
 // Enhanced Memory Card component (replaces your existing MemoryCard component)
 const MemoryCard = ({ memory }) => {
+  const navigate = useNavigate();
+  
+  const handleViewDetails = (e) => {
+    e.stopPropagation(); // Prevent event bubbling
+    navigate(`/memory/${memory.id}`);
+  };
+  
+  const handleShare = (e) => {
+    e.stopPropagation(); // Prevent event bubbling
+    // We'll implement share functionality in a moment
+    navigate(`/memory/${memory.id}?action=share`);
+  };
+  
   return (
-    <div className="bg-white rounded-lg shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl h-full flex flex-col">
-      {/* Image container with proper aspect ratio */}
+    <div className="bg-white rounded-lg shadow-lg overflow-hidden h-full flex flex-col">
+      {/* Image container remains the same */}
       <div className="relative h-48 bg-gray-100 overflow-hidden">
         <img 
           src={Array.isArray(memory.url) ? memory.url[0] : memory.url}
           alt={memory.title}
-          className="absolute w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
-          onError={(e) => {
-            e.target.onerror = null;
-            e.target.src = 'https://via.placeholder.com/400x300?text=Memory';
-          }}
+          className="absolute w-full h-full object-cover transition-transform duration-300 hover:scale-105"
         />
       </div>
       
@@ -23,20 +34,22 @@ const MemoryCard = ({ memory }) => {
       <div className="p-4 flex-grow flex flex-col">
         <h3 className="text-xl font-semibold text-gray-800 mb-1 truncate">{memory.title}</h3>
         <p className="text-sm text-gray-500 mb-2">
-          {new Date(memory.created_at).toLocaleDateString(undefined, { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
-          })}
+          {new Date(memory.created_at).toLocaleDateString()}
         </p>
         <p className="text-gray-600 line-clamp-2 mb-3 flex-grow">{memory.description}</p>
         
-        {/* Action buttons in a clean layout */}
+        {/* Action buttons with explicit click handlers */}
         <div className="flex justify-between items-center pt-2 border-t border-gray-100 mt-auto">
-          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium focus:outline-none transition-colors">
+          <button 
+            onClick={handleViewDetails}
+            className="text-blue-600 hover:text-blue-800 text-sm font-medium focus:outline-none transition-colors"
+          >
             View Details
           </button>
-          <button className="text-green-600 hover:text-green-800 text-sm font-medium flex items-center focus:outline-none transition-colors">
+          <button 
+            onClick={handleShare}
+            className="text-green-600 hover:text-green-800 text-sm font-medium flex items-center focus:outline-none transition-colors"
+          >
             <span>Share</span>
             <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
