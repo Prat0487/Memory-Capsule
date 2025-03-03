@@ -9,17 +9,26 @@ const ShareMemory = ({ memoryId }) => {
   
   const handleCopyLink = async () => {
     try {
+      // First, copy to clipboard - this is the core functionality
       await navigator.clipboard.writeText(shareUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
       
-      // Track this share in the blockchain service
-      await axios.post('/api/blockchain/track-share', { memoryId });
-      
+      // Show success toast immediately since clipboard operation worked
       toast.success('Link copied to clipboard!');
+      
+      // Try to track the share, but don't let failures affect user experience
+      try {
+        await axios.post('/api/blockchain/track-share', { memoryId });
+        // Optional: console.log("Share tracked successfully");
+      } catch (trackError) {
+        // Silently handle tracking failures - don't show to user
+        console.log("Share tracking unavailable - this won't affect functionality");
+      }
     } catch (err) {
+      // Only show error if the clipboard operation failed
       toast.error('Failed to copy link');
-      console.error('Error sharing memory:', err);
+      console.error('Error copying to clipboard:', err);
     }
   };
   
