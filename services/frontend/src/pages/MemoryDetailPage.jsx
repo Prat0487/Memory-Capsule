@@ -85,16 +85,34 @@ function MemoryDetailPage() {
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
         {memory.ipfsHash ? (
-          <div className="h-80 overflow-hidden">
-            <IpfsImage 
-              hash={memory.ipfsHash} 
-              alt={memory.title || "Memory image"}
-              className="w-full h-full object-cover"
-            />
+          <div className="relative">
+            {/* Dynamic height container with aspect ratio preservation */}
+            <div className="w-full aspect-[16/9] bg-gray-50 overflow-hidden rounded-t-xl">
+              <IpfsImage 
+                hash={memory.ipfsHash} 
+                alt={memory.title || "Memory image"}
+                className="w-full h-full object-contain"
+              />
+            </div>
+            
+            {/* Image controls overlay */}
+            <div className="absolute bottom-4 right-4 flex space-x-2">
+              <button 
+                onClick={() => window.open(`https://ipfs.io/ipfs/${memory.ipfsHash}`, '_blank')}
+                className="bg-black/70 hover:bg-black/90 text-white rounded-full p-2 transition-colors"
+                title="View full size"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M3 8a5 5 0 1110 0A5 5 0 013 8zm5-3a3 3 0 100 6 3 3 0 000-6zm-1 8a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zm8-3a1 1 0 11-2 0 1 1 0 012 0z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
           </div>
         ) : (
-          <div className="h-80 bg-gray-100 flex items-center justify-center">
-            <span className="text-gray-500">No image available</span>
+          <div className="w-full aspect-[16/9] bg-gray-100 flex items-center justify-center rounded-t-xl">
+            <svg className="h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
           </div>
         )}
         
