@@ -11,6 +11,7 @@ function MemoryDetailPage() {
   const [memory, setMemory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showShareOptions, setShowShareOptions] = useState(false);
   
   useEffect(() => {
     const fetchMemory = async () => {
