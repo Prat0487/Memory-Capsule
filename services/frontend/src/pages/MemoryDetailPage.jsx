@@ -14,14 +14,22 @@ function MemoryDetailPage() {
   useEffect(() => {
     const fetchMemory = async () => {
       try {
-        const response = await axios.get(`http://localhost:3000/memories/${id}`);
-        if (response.data.success) {
+        // Try these variations one at a time:
+        const response = await axios.get(`/memories/${id}`);  // Direct to service
+        // const response = await axios.get(`/memory-service/memories/${id}`);  // With service prefix
+        // const response = await axios.get(`/api/blockchain/memories/${id}`);  // Through blockchain service
+        
+        // Check the actual response structure and update accordingly
+        if (response.data && response.data.memory) {
           setMemory(response.data.memory);
+        } else if (response.data) {
+          // Some APIs return the data directly without a wrapper object
+          setMemory(response.data);
         } else {
-          setError('Memory not found');
+          setError('Memory data format unexpected');
         }
       } catch (err) {
-        console.error('Error fetching memory:', err);
+        console.error('Error details:', err.response?.data || err.message);
         setError('Failed to load memory');
       } finally {
         setLoading(false);
@@ -60,9 +68,34 @@ function MemoryDetailPage() {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
-        {memory.imageUrl && (
+        {memory.ipfsHash && (
           <div className="h-80 overflow-hidden">
-            <img src={memory.imageUrl} alt={memory.title} className="w-full h-full object-cover" />
+            <img 
+              src={getOptimizedIpfsUrl(memory.ipfsHash)}
+              alt={memory.title || "Memory image"} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Try next gateway on error
+                const currentSrc = e.target.src
+                const currentGateway = currentSrc.split('/ipfs/')[0]
+                const hash = memory.ipfsHash
+                
+                // Find next gateway to try
+                const gateways = [
+                  'https://ipfs.io',
+                  'https://cloudflare-ipfs.com',
+                  'https://dweb.link'
+                ]
+                
+                const currentIndex = gateways.findIndex(gw => currentSrc.startsWith(gw))
+                if (currentIndex < gateways.length - 1) {
+                  e.target.src = `${gateways[currentIndex + 1]}/ipfs/${hash}`
+                } else {
+                  // Fall back to a placeholder if all gateways fail
+                  e.target.src = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect fill='%23e2e8f0' width='400' height='300'/%3E%3Ctext fill='%2394a3b8' font-family='Arial' font-size='24' x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'%3EImage Unavailable%3C/text%3E%3C/svg%3E`
+                }
+              }}
+            />
           </div>
         )}
         
@@ -71,7 +104,11 @@ function MemoryDetailPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900">{memory.title}</h1>
               <p className="text-gray-600 mt-1">
-                Created: {new Date(memory.createdAt).toLocaleDateString()}
+                Created: {memory.createdAt 
+                  ? new Date(memory.createdAt).toLocaleDateString() 
+                  : memory.created_at 
+                    ? new Date(memory.created_at).toLocaleDateString()
+                    : "Date unavailable"}
               </p>
             </div>
             
