@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
 import axios from 'axios';
 import ShareMemory from '../components/ShareMemory';
+import IpfsImage from '../components/IpfsImage';
 
 function MemoryDetailPage() {
   const { id } = useParams();
@@ -14,22 +15,25 @@ function MemoryDetailPage() {
   useEffect(() => {
     const fetchMemory = async () => {
       try {
-        // Try these variations one at a time:
-        const response = await axios.get(`/memories/${id}`);  // Direct to service
-        // const response = await axios.get(`/memory-service/memories/${id}`);  // With service prefix
-        // const response = await axios.get(`/api/blockchain/memories/${id}`);  // Through blockchain service
+        const address = localStorage.getItem('userAddress') || '0x69592f057c1Fd4D1a82758D91acAf5D37d2639F8';
         
-        // Check the actual response structure and update accordingly
-        if (response.data && response.data.memory) {
-          setMemory(response.data.memory);
-        } else if (response.data) {
-          // Some APIs return the data directly without a wrapper object
-          setMemory(response.data);
+        // Fetch all memories for this user
+        const response = await axios.get(`http://localhost:3000/memories/${address}`);
+        
+        if (response.data && response.data.success && response.data.memories) {
+          // Find the specific memory by ID
+          const foundMemory = response.data.memories.find(memory => memory.id == id);
+          
+          if (foundMemory) {
+            setMemory(foundMemory);
+          } else {
+            setError('Memory not found in your collection');
+          }
         } else {
-          setError('Memory data format unexpected');
+          setError('Failed to load memories');
         }
       } catch (err) {
-        console.error('Error details:', err.response?.data || err.message);
+        console.error('Error details:', err);
         setError('Failed to load memory');
       } finally {
         setLoading(false);
@@ -39,6 +43,18 @@ function MemoryDetailPage() {
     fetchMemory();
   }, [id]);
   
+  // Add this temporarily to see the exact structure of your memory object
+  useEffect(() => {
+    if (memory) {
+      console.log("Memory object structure:", memory);
+      console.log("Date fields:", {
+        createdAt: memory.createdAt,
+        created_at: memory.created_at,
+        timestamp: memory.timestamp
+      });
+    }
+  }, [memory]);
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-12 text-center">
@@ -68,34 +84,17 @@ function MemoryDetailPage() {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
-        {memory.ipfsHash && (
+        {memory.ipfsHash ? (
           <div className="h-80 overflow-hidden">
-            <img 
-              src={getOptimizedIpfsUrl(memory.ipfsHash)}
-              alt={memory.title || "Memory image"} 
+            <IpfsImage 
+              hash={memory.ipfsHash} 
+              alt={memory.title || "Memory image"}
               className="w-full h-full object-cover"
-              onError={(e) => {
-                // Try next gateway on error
-                const currentSrc = e.target.src
-                const currentGateway = currentSrc.split('/ipfs/')[0]
-                const hash = memory.ipfsHash
-                
-                // Find next gateway to try
-                const gateways = [
-                  'https://ipfs.io',
-                  'https://cloudflare-ipfs.com',
-                  'https://dweb.link'
-                ]
-                
-                const currentIndex = gateways.findIndex(gw => currentSrc.startsWith(gw))
-                if (currentIndex < gateways.length - 1) {
-                  e.target.src = `${gateways[currentIndex + 1]}/ipfs/${hash}`
-                } else {
-                  // Fall back to a placeholder if all gateways fail
-                  e.target.src = `data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'%3E%3Crect fill='%23e2e8f0' width='400' height='300'/%3E%3Ctext fill='%2394a3b8' font-family='Arial' font-size='24' x='50%25' y='50%25' text-anchor='middle' dominant-baseline='middle'%3EImage Unavailable%3C/text%3E%3C/svg%3E`
-                }
-              }}
             />
+          </div>
+        ) : (
+          <div className="h-80 bg-gray-100 flex items-center justify-center">
+            <span className="text-gray-500">No image available</span>
           </div>
         )}
         
