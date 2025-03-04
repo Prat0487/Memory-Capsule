@@ -1,25 +1,43 @@
-// src/services/ai.js
-// Mock AI service for demonstration
-export const generateNarrative = async (description, files) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Mock AI-generated narrative based on description and files
-      const narratives = [
-        "A cherished moment frozen in time, capturing the essence of joy and connection.",
-        "This memory speaks of adventure and discovery, painting a vivid picture of life's journey.",
-        "A beautiful snapshot of relationships and shared experiences that define our story."
-      ];
-      
-      resolve(narratives[Math.floor(Math.random() * narratives.length)]);
-    }, 1500);
-  });
-};
+import express from 'express';
+import cors from 'cors';
+import { generateBasicNarrative } from './functions/narrative-generator.js';
 
-export const enhanceImage = async (imageFile) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Mock image enhancement
-      resolve(imageFile);
-    }, 1000);
-  });
-};
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware setup
+app.use(cors());
+app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', service: 'ai-service' });
+});
+
+// Narrative generation endpoint
+app.post('/api/generate-narrative', async (req, res) => {
+  try {
+    const { description } = req.body;
+    
+    if (!description) {
+      return res.status(400).json({ error: 'Description is required' });
+    }
+    
+    console.log(`Generating narrative for: "${description.substring(0, 30)}..."`);
+    const narrative = await generateBasicNarrative(description);
+    
+    console.log(`Generated narrative (${narrative.length} chars)`);
+    return res.json({ narrative });
+  } catch (error) {
+    console.error('Error generating narrative:', error);
+    return res.status(500).json({ 
+      error: 'Failed to generate narrative',
+      details: error.message
+    });
+  }
+});
+
+// Start the server
+app.listen(PORT, () => {
+  console.log(`AI service running on port ${PORT}`);
+});

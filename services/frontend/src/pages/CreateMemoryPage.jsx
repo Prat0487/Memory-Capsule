@@ -30,23 +30,21 @@ function CreateMemoryPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!account) return;
     
     setIsUploading(true);
     setUploadProgress(0);
-    setError('');
     
     try {
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description);
       formData.append('owner', account);
+      formData.append('generateNarrative', 'true'); // Explicitly add this flag
       
       files.forEach(file => {
         formData.append('files', file);
       });
       
-      // Making API call to memory service
       const response = await axios.post('http://localhost:3000/memories/create', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
@@ -56,7 +54,7 @@ function CreateMemoryPage() {
           setUploadProgress(percentCompleted);
         }
       });
-      
+    
       if (response.data.success) {
         navigate('/memories');
       } else {
@@ -69,7 +67,6 @@ function CreateMemoryPage() {
       setIsUploading(false);
     }
   };
-
   return (
     <div className="container mx-auto px-4 py-10">
       <h1 className="text-3xl font-bold mb-8 text-center">Create New Memory</h1>

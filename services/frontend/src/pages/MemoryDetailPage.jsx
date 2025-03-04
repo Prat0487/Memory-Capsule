@@ -151,14 +151,12 @@ function MemoryDetailPage() {
           <div className="prose max-w-none mb-8">
             <p className="text-lg">{memory.description}</p>
           </div>
-          
-          {memory.narrative && (
-            <div className="mb-8 p-6 bg-blue-50 rounded-lg">
-              <h3 className="font-medium text-blue-800 mb-2">AI Generated Narrative</h3>
-              <p className="text-gray-800 italic">{memory.narrative}</p>
-            </div>
-          )}
-          
+                      {memory.narrative && (
+                        <div className="mb-8 p-6 bg-blue-50 rounded-lg">
+                          <h3 className="font-medium text-blue-800 mb-2">AI Memory Narrative</h3>
+                          <p className="text-gray-800 italic">{memory.narrative}</p>
+                        </div>
+                      )}
           <div className="flex justify-between items-center pt-4 border-t border-gray-200">
             <Link to="/memories" className="text-blue-600 hover:text-blue-800">
               ← Back to Memories
