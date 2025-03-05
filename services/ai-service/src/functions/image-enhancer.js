@@ -30,7 +30,7 @@ export const enhanceImageWithAI = async (description, imageUrl) => {
     `;
     
     // 4. Call Vertex AI vision model (Gemini Pro Vision)
-    const model = getGenerativeModel('gemini-1.5-pro-vision');
+    const model = getGenerativeModel('gemini-1.5-pro');
     
     const result = await model.generateContent({
       contents: [{
