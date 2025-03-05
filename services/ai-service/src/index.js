@@ -50,53 +50,68 @@ async function enhanceImageWithAI(description, ipfsHash) {
   try {
     console.log(`Starting image enhancement for IPFS hash: ${ipfsHash}`);
     
-    // Get the image URL
-    const imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+    // Extract just the hash if a full URL was passed
+    let hash = ipfsHash;
+    if (ipfsHash.includes('/ipfs/')) {
+      hash = ipfsHash.split('/ipfs/').pop();
+    }
     
-    // Use Vertex AI to enhance the image
-    const model = getGenerativeModel('gemini-1.5-pro-vision');
+    // Array of IPFS gateways to try if one fails
+    const gateways = [
+      'https://gateway.pinata.cloud/ipfs/',
+      'https://ipfs.io/ipfs/',
+      'https://cloudflare-ipfs.com/ipfs/',
+      'https://dweb.link/ipfs/'
+    ];
     
-    // 1. Download the image (simplifying this for now)
-    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    const imageBase64 = Buffer.from(imageResponse.data).toString('base64');
+    // Try different gateways if one fails
+    let imageData = null;
+    let contentType = 'image/jpeg';  // Default content type
     
-    // 2. Generate the prompt for image enhancement
-    const prompt = `
-      Enhance this image based on the following description:
-      "${description}"
-      
-      Make subtle improvements to match the description while maintaining the original essence.
-      Focus on:
-      - Improving colors and lighting
-      - Enhancing details described in the text
-      - Creating a more vivid version of the scene
-    `;
+    for (let i = 0; i < gateways.length; i++) {
+      try {
+        const imageUrl = `${gateways[i]}${hash}`;
+        console.log(`Attempting to fetch image from: ${imageUrl}`);
+        
+        const imageResponse = await axios.get(imageUrl, {
+          responseType: 'arraybuffer',
+          timeout: 10000  // 10 second timeout
+        });
+        
+        imageData = imageResponse.data;
+        contentType = imageResponse.headers['content-type'] || 'image/jpeg';
+        console.log(`Successfully fetched image from ${gateways[i]}`);
+        break;  // Success! Exit the loop
+      } catch (err) {
+        console.log(`Failed to fetch from ${gateways[i]}: ${err.message}`);
+        
+        // If this is the last gateway and all failed, throw error
+        if (i === gateways.length - 1) {
+          throw new Error('All IPFS gateways failed');
+        }
+        
+        // Wait a bit before trying the next gateway
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
     
-    // 3. Call Vertex AI
-    console.log("Calling Vertex AI vision model...");
-    const result = await model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: prompt },
-          { inlineData: {
-             mimeType: imageResponse.headers['content-type'] || 'image/jpeg',
-             data: imageBase64
-           }}
-        ]
-      }]
-    });
+    if (!imageData) {
+      throw new Error('Could not retrieve image from any gateway');
+    }
     
-    // For now, just return the original hash
-    // In a full implementation, we would extract the enhanced image from the response
-    // and upload it to IPFS, but that requires more complex handling
+    // For now, just return the original hash since we're not actually enhancing
+    // In a real implementation, you would:
+    // 1. Send the image to Vertex AI
+    // 2. Get the enhanced image back
+    // 3. Upload to IPFS
+    // 4. Return the new hash
     
-    console.log("Image enhancement complete");
-    return ipfsHash;
+    console.log("Image enhancement complete (returning original hash for now)");
+    return hash;
   } catch (error) {
     console.error("Error in image enhancement:", error);
     // Return the original hash if enhancement fails
-    return ipfsHash;
+    return ipfsHash.includes('/ipfs/') ? ipfsHash.split('/ipfs/').pop() : ipfsHash;
   }
 }
 
