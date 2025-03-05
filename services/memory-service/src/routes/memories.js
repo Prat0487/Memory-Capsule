@@ -67,102 +67,62 @@ const updateMemoryImage = async (req, res) => {
      });
   }
 };
-
-router.post('/memories/create', upload.array('files'), async (req, res) => {
+  const enhanceImage = async (description, ipfsHash) => {
     try {
-      // Extracting and logging all request fields
-      console.log('Request fields:', req.body);
+      console.log(`Requesting image enhancement for hash: ${ipfsHash}`);
     
-      let narrativeText = '';
-      let memoryData;
-
-      // Check if narrative generation is requested
-      if (req.body.generateNarrative === 'true') {
-        console.log('Narrative generation requested - generating narrative');
-      
-        try {
-          // Option 1: Call your AI service if it's available
-          const aiResponse = await axios.post('http://ai-service:3001/api/generate-narrative', {
-            description: req.body.description
-          }, { timeout: 5000 });
-        
-          if (aiResponse?.data?.narrative) {
-            // Use the AI-generated narrative
-            narrativeText = aiResponse.data.narrative;
-            console.log('AI narrative generated:', narrativeText.substring(0, 30) + '...');
-          } else {
-            // Fallback to template narratives if AI service returns empty
-            throw new Error('AI service returned empty narrative');
-          }
-        } catch (error) {
-          console.log('AI service unavailable, using template narrative instead:', error.message);
-        
-          // Option 2: Generate a simple narrative if AI service fails
-          const narratives = [
-            "This captured moment represents more than just an image - it embodies the emotions, connections, and unique experiences that shape your personal journey.",
-            "Some moments deserve to be treasured forever. This memory, preserved in your digital time capsule, will remain a beacon of that special feeling.",
-            "The power of memory lies in its ability to transcend time, bringing emotions and connections back to life whenever you revisit this preserved moment."
-          ];
-        
-          // Select a narrative based on description content
-          const seed = req.body.description.length;
-          narrativeText = narratives[seed % narratives.length];
-          console.log('Template narrative generated:', narrativeText.substring(0, 30) + '...');
-        }
-      
-        // Now include the narrative in the memory data
-        memoryData = {
-          title: req.body.title,
-          description: req.body.description,
-          ipfsHash: uploadResult.IpfsHash,
-          url: `https://gateway.pinata.cloud/ipfs/${uploadResult.IpfsHash}`,
-          ownerAddress: req.body.owner,
-          created_at: new Date().toISOString(),
-          type: 'standard',
-          sharecount: 0,
-          narrative: narrativeText  // Use the generated narrative
-        };
-      } else {
-        // No narrative generation requested, create memory object with empty narrative
-        memoryData = {
-          title: req.body.title,
-          description: req.body.description,
-          ipfsHash: uploadResult.IpfsHash,
-          url: `https://gateway.pinata.cloud/ipfs/${uploadResult.IpfsHash}`,
-          ownerAddress: req.body.owner,
-          created_at: new Date().toISOString(),
-          type: 'standard',
-          sharecount: 0,
-          narrative: ''
-        };
-      }
-
-      // Then continue with your Supabase insert
-      const { data, error } = await supabase.from('memories').insert([memoryData]).select();
-    
-      if (error) {
-        // Your error handling
-      }
-    
-      // Get the newly created memory
-      const memory = data[0];
-      console.log(`Memory created with ID ${memory.id}`);
-    
-      // Respond immediately with the created memory
-      return res.status(201).json({
-        success: true,
-        message: 'Memory created successfully',
-        memory
+      // Direct HTTP call to the AI service - using service name, not localhost
+      const aiResponse = await axios.post('http://ai-service:3001/api/enhance-image', {
+        description,
+        ipfsHash
+      }, { 
+        timeout: 30000  // Longer timeout for image processing
       });
+    
+      console.log('AI service response:', aiResponse.data);
+      return aiResponse.data.enhancedImageHash || ipfsHash;
     } catch (error) {
-      console.error('Memory creation failed:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'An unexpected error occurred while creating memory'
+      console.error('Failed to enhance image:', error.message);
+      return ipfsHash;  // Return original hash on failure
+    }
+  };
+
+  router.post('/memories', async (req, res) => {
+    try {
+      // Extract data from request
+      const { title, description, ipfsHash, enhanceImage, ...otherData } = req.body;
+    
+      // First generate narrative - keep your existing code
+      const narrative = await generateNarrative(description);
+    
+      // Handle image enhancement if requested
+      let finalIpfsHash = ipfsHash;
+      let metadata = {};
+    
+      if (enhanceImage && ipfsHash) {
+        const enhancedHash = await enhanceImage(description, ipfsHash);
+        if (enhancedHash !== ipfsHash) {
+          finalIpfsHash = enhancedHash;
+          metadata.originalHash = ipfsHash;
+        }
+      }
+    
+      // Create the memory with narrative and possibly enhanced image
+      const newMemory = await db.query(
+        'INSERT INTO memories (title, description, ipfs_hash, narrative, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        [title, description, finalIpfsHash, narrative, metadata]
+      );
+    
+      res.status(201).json({
+        success: true,
+        memory: newMemory.rows[0]
       });
+    
+    } catch (error) {
+      console.error('Error creating memory:', error);
+      res.status(500).json({ success: false, error: 'Failed to create memory' });
     }
   });
-
 // Add a new endpoint to get a memory by its ID for public sharing
 router.get('/api/memories/shared/:id', async (req, res) => {
   try {
