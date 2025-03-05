@@ -5,11 +5,9 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import FormData from 'form-data';
+import { getGenerativeModel } from './clients/vertex-client.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
-
-// Middleware setup
 app.use(cors());
 app.use(express.json());
 
@@ -42,6 +40,41 @@ app.post('/api/generate-narrative', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Failed to generate narrative' 
+    });
+  }
+});
+
+// Image enhancement endpoint
+app.post('/api/enhance-image', async (req, res) => {
+  try {
+    const { description, ipfsHash } = req.body;
+    
+    if (!description || !ipfsHash) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Both description and ipfsHash are required' 
+      });
+    }
+    
+    console.log(`Enhancing image ${ipfsHash} based on description: ${description}`);
+    
+    // Get the image from IPFS
+    const imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+    
+    // Call Vertex AI to enhance the image
+    const enhancedImageHash = await enhanceImageWithAI(description, imageUrl);
+    
+    // Return the enhanced image hash
+    res.status(200).json({
+      success: true,
+      originalIpfsHash: ipfsHash,
+      enhancedImageHash: enhancedImageHash
+    });
+  } catch (error) {
+    console.error('Error enhancing image:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to enhance image' 
     });
   }
 });
@@ -99,11 +132,7 @@ async function enhanceImageWithAI(description, ipfsHash) {
       throw new Error('Could not retrieve image from any gateway');
     }
     
-    // Step 1: Get Vertex AI model
-    console.log('Getting AI model for image enhancement...');
-    const model = getGenerativeModel('gemini-1.5-pro');
-    
-    // Step 2: Create a temporary file for the image
+    // Step 1: Create a temporary file for the image
     // Create a temporary directory if it doesn't exist
     const tempDir = path.join(process.cwd(), 'temp');
     if (!fs.existsSync(tempDir)) {
@@ -113,24 +142,35 @@ async function enhanceImageWithAI(description, ipfsHash) {
     const tempImagePath = path.join(tempDir, `temp_image_${Date.now()}.${contentType.split('/')[1] || 'jpg'}`);
     fs.writeFileSync(tempImagePath, Buffer.from(imageData));
     
-    // Step 3: Create multipart request to Vertex AI
-    console.log('Sending image to Vertex AI for enhancement...');
-  const prompt = `
-    Enhance this image based on the following description:
-    "${description}"
-  
-    Focus on:
-    - Improving visual quality
-    - Adjusting colors to match the description's mood
-    - Enhancing details mentioned in the description
-    - Maintaining the original composition
-  
-    IMPORTANT: Return an enhanced version of this image as part of your response.
-  `;
+    // Step 2: Get AI analysis and enhancement suggestions
+    console.log('Getting AI model for image analysis...');
+    const model = getGenerativeModel(); // Use default gemini-1.5-pro
     
-    // Step 4: Process the image using Vertex AI
+    const prompt = `
+      Analyze this image and provide specific enhancement parameters I can apply.
+      The image relates to: "${description}"
+      
+      Please provide numerical parameters for these enhancements:
+      1. Saturation adjustment (0.8-1.5)
+      2. Contrast adjustment (0.8-1.5)
+      3. Brightness adjustment (0.8-1.5)
+      4. Sharpness level (0-5)
+      5. Warmth/coolness (-30 to +30)
+      
+      Format your response exactly like this example:
+      {
+        "saturation": 1.2,
+        "contrast": 1.1,
+        "brightness": 1.05,
+        "sharpness": 2,
+        "temperature": 10
+      }
+      
+      Only return this JSON object, nothing else.
+    `;
+    
+    // Step 3: Process the image using Vertex AI for analysis
     try {
-      const model = getGenerativeModel();
       const result = await model.generateContent({
         contents: [{
           role: 'user',
@@ -143,55 +183,85 @@ async function enhanceImageWithAI(description, ipfsHash) {
               }
             }
           ]
-        }],
-        generationConfig: {
-          temperature: 0.4,
-          topP: 0.8,
-          topK: 40,
-          responseMimeType: "image/png", // Request an image response
-          maxOutputTokens: 1024
-        }
+        }]
       });
-              // Immediately after receiving the response
-              console.log('Examining AI response structure:', JSON.stringify(result.response, null, 2).substring(0, 500) + '...');
-
-              // Try different ways to access the image data
-              let enhancedImageData = null;
-
-              // Method 1: Check candidates[0].content.parts for inline_data with image
-              if (result.response.candidates?.[0]?.content?.parts) {
-                enhancedImageData = result.response.candidates[0].content.parts.find(
-                  part => part.inline_data?.mime_type?.startsWith('image/')
-                );
-              }
-
-              // Method 2: If Method 1 fails, check if there's a direct parts array
-              if (!enhancedImageData && result.response.parts) {
-                enhancedImageData = result.response.parts.find(
-                  part => part.inline_data?.mime_type?.startsWith('image/')
-                );
-              }
-
-              // Method 3: Inspect for any other structure containing image data
-              if (!enhancedImageData) {
-                // If we still can't find it, log the full response structure for debugging
-                console.log('Full AI response structure for debugging:', 
-                  JSON.stringify(result.response, null, 2));
-                console.log('No enhanced image found in expected locations');
-              }
       
-              if (!enhancedImageData) {
-                console.log('No enhanced image returned from AI, using original image');
-                // Clean up temporary file and return original hash
-                fs.unlinkSync(tempImagePath);
-                return hash;
-              }
-      // Step 6: Save the enhanced image
-      const enhancedImageBuffer = Buffer.from(enhancedImageData.inline_data.data, 'base64');
-      const enhancedImagePath = path.join(tempDir, `enhanced_image_${Date.now()}.${contentType.split('/')[1] || 'jpg'}`);
-      fs.writeFileSync(enhancedImagePath, enhancedImageBuffer);
+      // Step 4: Extract the enhancement parameters from the AI response
+      const responseText = result.response.candidates[0].content.parts[0].text;
+      console.log('AI enhancement suggestions:', responseText);
       
-      // Step 7: Upload the enhanced image to IPFS
+      // Try to extract the JSON object
+      let enhancementParams = {};
+      try {
+        // Look for JSON object in the response
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          enhancementParams = JSON.parse(jsonMatch[0]);
+          console.log('Parsed enhancement parameters:', enhancementParams);
+        } else {
+          // Use default enhancement parameters
+          enhancementParams = {
+            saturation: 1.2,
+            contrast: 1.1,
+            brightness: 1.05,
+            sharpness: 2,
+            temperature: 10
+          };
+          console.log('Using default enhancement parameters');
+        }
+      } catch (parseError) {
+        console.error('Error parsing enhancement parameters:', parseError);
+        // Use default enhancement parameters
+        enhancementParams = {
+          saturation: 1.2,
+          contrast: 1.1,
+          brightness: 1.05,
+          sharpness: 2,
+          temperature: 10
+        };
+        console.log('Using default enhancement parameters due to parsing error');
+      }
+      
+      // Step 5: Apply the enhancements using Sharp
+      console.log('Applying image enhancements with Sharp...');
+      let sharpImage = sharp(tempImagePath);
+      
+      // Apply saturation, contrast, brightness
+      sharpImage = sharpImage.modulate({
+        saturation: enhancementParams.saturation || 1.2,
+        brightness: enhancementParams.brightness || 1.05
+      });
+      
+      // Apply contrast
+      sharpImage = sharpImage.linear(
+        enhancementParams.contrast || 1.1, // multiply
+        0 // add (offset)
+      );
+      
+      // Apply sharpness
+      if (enhancementParams.sharpness > 0) {
+        sharpImage = sharpImage.sharpen(enhancementParams.sharpness || 2);
+      }
+      
+      // Apply color temperature adjustment (tint)
+      if (enhancementParams.temperature) {
+        // Warm (positive values) or cool (negative values) tint
+        const temp = enhancementParams.temperature || 0;
+        if (temp > 0) {
+          // Warm tint (more red/yellow)
+          sharpImage = sharpImage.tint({ r: 255, g: 240, b: 230 });
+        } else if (temp < 0) {
+          // Cool tint (more blue)
+          sharpImage = sharpImage.tint({ r: 230, g: 240, b: 255 });
+        }
+      }
+      
+      // Save the enhanced image
+      const enhancedImagePath = path.join(tempDir, `enhanced_image_${Date.now()}.jpg`);
+      await sharpImage.toFile(enhancedImagePath);
+      console.log('Enhancement complete, saved to:', enhancedImagePath);
+      
+      // Step 6: Upload the enhanced image to IPFS
       console.log('Uploading enhanced image to IPFS...');
       const formData = new FormData();
       formData.append('file', fs.createReadStream(enhancedImagePath));
@@ -203,11 +273,15 @@ async function enhanceImageWithAI(description, ipfsHash) {
         }
       });
       
-      // Step 8: Clean up temporary files
-      fs.unlinkSync(tempImagePath);
-      fs.unlinkSync(enhancedImagePath);
+      // Step 7: Clean up temporary files
+      try {
+        fs.unlinkSync(tempImagePath);
+        fs.unlinkSync(enhancedImagePath);
+      } catch (cleanupError) {
+        console.error('Error cleaning up temp files:', cleanupError);
+      }
       
-      // Step 9: Return the new IPFS hash
+      // Step 8: Return the new IPFS hash
       if (ipfsResponse.data && ipfsResponse.data.success && ipfsResponse.data.ipfsHash) {
         console.log(`Image enhancement complete, new IPFS hash: ${ipfsResponse.data.ipfsHash}`);
         return ipfsResponse.data.ipfsHash;
@@ -231,43 +305,67 @@ async function enhanceImageWithAI(description, ipfsHash) {
     return ipfsHash.includes('/ipfs/') ? ipfsHash.split('/ipfs/').pop() : ipfsHash;
   }
 }
-app.post('/api/enhance-image', async (req, res) => {
+
+// At the end of your file
+console.log('Starting server initialization');
+
+// Create a single server instance
+let server;
+
+// Global port variable
+const PORT = process.env.PORT || 3001;
+
+// Start the server with port conflict handling
+function startServer(port = PORT) {
   try {
-    const { description, ipfsHash } = req.body;
-    
-    if (!description || !ipfsHash) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Both description and ipfsHash are required' 
-      });
+    // Close previous server if it exists
+    if (server) {
+      server.close();
     }
     
-    console.log(`Enhancing image ${ipfsHash} based on description: ${description}`);
-    
-    // Get the image from IPFS
-    const imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
-    
-    // Call Vertex AI to enhance the image
-    const enhancedImageHash = await enhanceImageWithAI(description, imageUrl);
-    
-    // Return the enhanced image hash
-    res.status(200).json({
-      success: true,
-      originalIpfsHash: ipfsHash,
-      enhancedImageHash: enhancedImageHash
+    // Create new server
+    server = app.listen(port, () => {
+      console.log(`AI service running on port ${port}`);
     });
+    
+    // Handle errors
+    server.on('error', (error) => {
+      if (error.code === 'EADDRINUSE') {
+        console.log(`Port ${port} is already in use. Trying port ${port + 1}...`);
+        startServer(port + 1);
+      } else {
+        console.error('Server error:', error);
+      }
+    });
+    
+    return server;
   } catch (error) {
-    console.error('Error enhancing image:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to enhance image' 
+    console.error('Failed to start server:', error);
+    return null;
+  }
+}
+
+// Graceful shutdown handlers
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed');
     });
   }
 });
-// Start the server
-// Add this import at the top of your file, with your other imports
-import { getGenerativeModel } from './clients/vertex-client.js';
 
-app.listen(PORT, () => {
-  console.log(`AI service running on port ${PORT}`);
+process.on('SIGINT', () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  if (server) {
+    server.close(() => {
+      console.log('HTTP server closed');
+    });
+  }
 });
+
+// Start the server
+startServer();
+
+// Export the server for testing purposes
+export { server };

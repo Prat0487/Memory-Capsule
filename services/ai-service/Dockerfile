@@ -8,6 +8,10 @@ RUN npm install --production
 # Install all dependencies including dev dependencies
 RUN npm install
 
+# Add this to your existing Dockerfile
+# Sharp requires additional dependencies on Alpine
+RUN apk add --no-cache vips-dev build-base
+
 # Copy the rest of the application code
 COPY . .
 
