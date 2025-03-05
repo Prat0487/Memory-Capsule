@@ -39,6 +39,7 @@ function MemoryUpload() {
       formData.append('title', title);
       formData.append('description', description);
       formData.append('owner', account);
+      formData.append('generateNarrative', 'true'); // Explicitly add this flag
       
       files.forEach(file => {
         formData.append('files', file);

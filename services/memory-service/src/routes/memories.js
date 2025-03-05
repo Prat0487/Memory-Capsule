@@ -24,71 +24,100 @@ const generateNarrative = async (description) => {
     return '';
   }
 };
+  router.post('/memories/create', upload.array('files'), async (req, res) => {
+    try {
+      // Extracting and logging all request fields
+      console.log('Request fields:', req.body);
+    
+      let narrativeText = '';
+      let memoryData;
 
-router.post('/memories/create', upload.array('files'), async (req, res) => {
-  try {
-    // Extracting and logging all request fields
-    console.log('Request fields:', req.body);
-    
-    // Create the initial memory record - your existing code
-    const { data, error } = await supabase.from('memories').insert([{
-      title: req.body.title,
-      description: req.body.description,
-      // other fields...
-    }]).select();
-    
-    if (error) {
-      // Your error handling
-    }
-    
-    // Get the newly created memory
-    const memory = data[0];
-    console.log(`Memory created with ID ${memory.id}`);
-    
-    // Always attempt narrative generation if we have a description
-    if (req.body.description && req.body.description.length > 10) {
-      console.log('Description meets minimum length for narrative generation');
+      // Check if narrative generation is requested
+      if (req.body.generateNarrative === 'true') {
+        console.log('Narrative generation requested - generating narrative');
       
-      // Generate narrative in background 
-      setTimeout(async () => {
         try {
-          console.log(`Starting background narrative generation for memory ${memory.id}`);
-          const narrative = await generateNarrative(req.body.description);
-          
-          if (narrative) {
-            console.log(`Updating memory ${memory.id} with generated narrative`);
-            const { error: updateError } = await supabase
-              .from('memories')
-              .update({ narrative })
-              .eq('id', memory.id);
-              
-            if (updateError) {
-              console.error('Failed to update memory with narrative:', updateError);
-            } else {
-              console.log(`Successfully updated memory ${memory.id} with narrative`);
-            }
+          // Option 1: Call your AI service if it's available
+          const aiResponse = await axios.post('http://ai-service:3001/api/generate-narrative', {
+            description: req.body.description
+          }, { timeout: 5000 });
+        
+          if (aiResponse?.data?.narrative) {
+            // Use the AI-generated narrative
+            narrativeText = aiResponse.data.narrative;
+            console.log('AI narrative generated:', narrativeText.substring(0, 30) + '...');
+          } else {
+            // Fallback to template narratives if AI service returns empty
+            throw new Error('AI service returned empty narrative');
           }
-        } catch (e) {
-          console.error('Background narrative processing error:', e);
+        } catch (error) {
+          console.log('AI service unavailable, using template narrative instead:', error.message);
+        
+          // Option 2: Generate a simple narrative if AI service fails
+          const narratives = [
+            "This captured moment represents more than just an image - it embodies the emotions, connections, and unique experiences that shape your personal journey.",
+            "Some moments deserve to be treasured forever. This memory, preserved in your digital time capsule, will remain a beacon of that special feeling.",
+            "The power of memory lies in its ability to transcend time, bringing emotions and connections back to life whenever you revisit this preserved moment."
+          ];
+        
+          // Select a narrative based on description content
+          const seed = req.body.description.length;
+          narrativeText = narratives[seed % narratives.length];
+          console.log('Template narrative generated:', narrativeText.substring(0, 30) + '...');
         }
-      }, 100); // Small delay to ensure response is sent first
-    }
-    
-    // Respond immediately with the created memory
-    return res.status(201).json({
-      success: true,
-      message: 'Memory created successfully',
-      memory
-    });
-  } catch (error) {
-    console.error('Memory creation failed:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'An unexpected error occurred while creating memory'
-    });
-  }
-});
+      
+        // Now include the narrative in the memory data
+        memoryData = {
+          title: req.body.title,
+          description: req.body.description,
+          ipfsHash: uploadResult.IpfsHash,
+          url: `https://gateway.pinata.cloud/ipfs/${uploadResult.IpfsHash}`,
+          ownerAddress: req.body.owner,
+          created_at: new Date().toISOString(),
+          type: 'standard',
+          sharecount: 0,
+          narrative: narrativeText  // Use the generated narrative
+        };
+      } else {
+        // No narrative generation requested, create memory object with empty narrative
+        memoryData = {
+          title: req.body.title,
+          description: req.body.description,
+          ipfsHash: uploadResult.IpfsHash,
+          url: `https://gateway.pinata.cloud/ipfs/${uploadResult.IpfsHash}`,
+          ownerAddress: req.body.owner,
+          created_at: new Date().toISOString(),
+          type: 'standard',
+          sharecount: 0,
+          narrative: ''
+        };
+      }
 
+      // Then continue with your Supabase insert
+      const { data, error } = await supabase.from('memories').insert([memoryData]).select();
+    
+      if (error) {
+        // Your error handling
+      }
+    
+      // Get the newly created memory
+      const memory = data[0];
+      console.log(`Memory created with ID ${memory.id}`);
+    
+      // Respond immediately with the created memory
+      return res.status(201).json({
+        success: true,
+        message: 'Memory created successfully',
+        memory
+      });
+    } catch (error) {
+      console.error('Memory creation failed:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'An unexpected error occurred while creating memory'
+      });
+    }
+  });
 // Add a new endpoint to get a memory by its ID for public sharing
 router.get('/api/memories/shared/:id', async (req, res) => {
   try {

@@ -72,22 +72,40 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
         details: 'Storage service unavailable or failed to process files'
       });
     }
-    
-    // Create record with exact column names matching Supabase schema
-    const memoryData = { 
-      title: title || "Untitled Memory", 
-      description: description || "", 
-      created_at: date || new Date().toISOString(), 
-      ipfsHash: ipfsHash,  // This will never be null now
-      url: fileUrls.length > 0 ? fileUrls[0] : "",
-      ownerAddress: owner,
-      narrative: req.body.narrativeText || "",
-      type: "standard",
-      sharecount: 0
-    };
-    
-    console.log("Inserting into Supabase:", memoryData);
-    
+          let narrativeText = '';
+
+          // Check if narrative generation is requested
+          if (req.body.generateNarrative === 'true') {
+            console.log('NARRATIVE FEATURE: Generating narrative from description');
+  
+            // Simple template-based narrative generation
+            const templates = [
+              "This captured moment shows {description}. It represents a unique chapter in your life journey, preserved forever in your memory capsule.",
+              "The memory of {description} is now immortalized. Years from now, you'll look back at this moment and reconnect with the emotions it carries.",
+              "Every memory tells a story. This one, capturing {description}, is a testament to the experiences that shape who you are."
+            ];
+  
+            // Select a template and replace placeholder with actual description
+            const template = templates[Math.floor(Math.random() * templates.length)];
+            narrativeText = template.replace('{description}', req.body.description);
+  
+            console.log('NARRATIVE FEATURE: Generated narrative:', narrativeText);
+          }
+
+          // Create record with exact column names matching Supabase schema
+          const memoryData = { 
+            title: req.body.title || "Untitled Memory", 
+            description: req.body.description || "", 
+            created_at: new Date().toISOString(), 
+            ipfsHash: ipfsHash,  // This will never be null now
+            url: fileUrls.length > 0 ? fileUrls[0] : "",
+            ownerAddress: owner,
+            narrative: narrativeText, // Use the generated narrative instead of empty string
+            type: "standard",
+            sharecount: 0
+          };
+
+          console.log("Inserting into Supabase:", memoryData);
     // Execute database insertion with correct column mapping
     const { data, error } = await supabase
       .from('memories')
