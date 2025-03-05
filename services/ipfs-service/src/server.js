@@ -31,50 +31,111 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage });
-
+const upload = multer({ storage }).single('file');
 // Upload endpoint
-app.post('/upload', async (req, res) => {
+app.post('/upload', upload, async (req, res) => {
   try {
-    // Add comprehensive logging
-    console.log("Upload request received", req.body ? "with body" : "without body");
-    
-    // Handle both form data and JSON uploads
-    const files = req.files || req.body.files;
-    
-    if (!files || (Array.isArray(files) && files.length === 0)) {
+    console.log("Upload request received");
+
+    const file = req.file;
+
+    if (!file) {
       return res.status(400).json({
         success: false,
-        error: 'No files provided'
+        error: 'No file provided'
       });
     }
+
+    console.log("File to upload:", file.originalname);
+
+    const uploadToIPFS = async (filePath, originalName, mimetype) => {
+      try {
+        const readableStreamForFile = fs.createReadStream(filePath);
+        const options = {
+          pinataMetadata: {
+            name: originalName
+          }
+        };
+
+        const pinResult = await pinata.pinFileToIPFS(readableStreamForFile, options);
+        
+        return {
+          success: true,
+          ipfsHash: pinResult.IpfsHash,
+          fileUrl: `https://gateway.pinata.cloud/ipfs/${pinResult.IpfsHash}`,
+          originalName
+        };
+      } catch (error) {
+        console.error("IPFS upload error:", error);
+        throw error;
+      }
+    };
+
+    const result = await uploadToIPFS(file.path, file.originalname, file.mimetype);
     
-    console.log("Files to upload:", files);
-    
-    // Process files here...
-    // Rest of your implementation
-    
-    // For testing, if upload is causing issues, return mock data
-    res.status(200).json({
-      success: true,
-      ipfsHash: "test-hash-123",
-      fileUrls: ["https://example.com/test-file"],
-      files: [{
-        originalName: "test.jpg",
-        ipfsHash: "test-hash-123",
-        fileUrl: "https://example.com/test-file"
-      }]
-    });
-    
+    res.status(200).json(result);
   } catch (error) {
     console.error('File upload error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to upload files to IPFS',
+      error: 'Failed to upload file to IPFS',
       details: error.message
     });
   }
 });
+
+app.post('/upload-enhanced', async (req, res) => {
+  try {
+    if (!req.body || !req.body.imageData) {
+      return res.status(400).json({ error: 'Missing image data' });
+    }
+    
+    const { imageData, filename = 'enhanced_image.jpg' } = req.body;
+    
+    const imageBuffer = Buffer.from(imageData.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+    
+    const uploadDir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    const tempFilePath = path.join(uploadDir, filename);
+    
+    fs.writeFileSync(tempFilePath, imageBuffer);
+    
+    const uploadToIPFS = async (filePath, originalName, mimetype) => {
+      try {
+        const readableStreamForFile = fs.createReadStream(filePath);
+        const options = {
+          pinataMetadata: {
+            name: originalName
+          }
+        };
+
+        const pinResult = await pinata.pinFileToIPFS(readableStreamForFile, options);
+        
+        return {
+          success: true,
+          ipfsHash: pinResult.IpfsHash,
+          fileUrl: `https://gateway.pinata.cloud/ipfs/${pinResult.IpfsHash}`,
+          originalName
+        };
+      } catch (error) {
+        console.error("IPFS upload error:", error);
+        throw error;
+      }
+    };
+    
+    const result = await uploadToIPFS(tempFilePath, filename, 'image/jpeg');
+    
+    fs.unlinkSync(tempFilePath);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Enhanced image upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`IPFS Storage Service running on port ${PORT} bound to all interfaces`);
 });

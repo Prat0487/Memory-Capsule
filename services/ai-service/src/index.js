@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import FormData from 'form-data';
 import { getGenerativeModel } from './clients/vertex-client.js';
+import sharp from 'sharp';
 
 const app = express();
 app.use(cors());
@@ -260,19 +261,40 @@ async function enhanceImageWithAI(description, ipfsHash) {
       const enhancedImagePath = path.join(tempDir, `enhanced_image_${Date.now()}.jpg`);
       await sharpImage.toFile(enhancedImagePath);
       console.log('Enhancement complete, saved to:', enhancedImagePath);
-      
-      // Step 6: Upload the enhanced image to IPFS
-      console.log('Uploading enhanced image to IPFS...');
-      const formData = new FormData();
-      formData.append('file', fs.createReadStream(enhancedImagePath));
-      
-      const ipfsResponse = await axios.post('http://ipfs-service:3002/upload', formData, {
-        headers: {
-          ...formData.getHeaders(),
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      
+              const uploadEnhancedImage = async (enhancedImagePath) => {
+                try {
+                  console.log('Uploading enhanced image to IPFS...');
+    
+                  // Use the already imported FormData 
+                  const form = new FormData();
+    
+                  // Read the file directly
+                  const fileContent = fs.readFileSync(enhancedImagePath);
+    
+                  // Add the file with field name 'file'
+                  form.append('file', fileContent, {
+                    filename: path.basename(enhancedImagePath),
+                    contentType: 'image/jpeg'
+                  });
+    
+                  // Make the request with proper headers from form-data
+                  const response = await axios.post('http://ipfs-service:3002/upload', form, {
+                    headers: form.getHeaders()
+                  });
+    
+                  console.log('Enhanced image uploaded successfully');
+                  return response.data;
+                } catch (error) {
+                  console.error('Error uploading to IPFS:', error.message);
+                  console.log('Failed to upload enhanced image, returning original hash');
+                  return { 
+                    success: false, 
+                    error: error.message,
+                    originalHash: true
+                  };
+                }
+              };
+              const ipfsResponse = await uploadEnhancedImage(enhancedImagePath);
       // Step 7: Clean up temporary files
       try {
         fs.unlinkSync(tempImagePath);
@@ -282,9 +304,9 @@ async function enhanceImageWithAI(description, ipfsHash) {
       }
       
       // Step 8: Return the new IPFS hash
-      if (ipfsResponse.data && ipfsResponse.data.success && ipfsResponse.data.ipfsHash) {
-        console.log(`Image enhancement complete, new IPFS hash: ${ipfsResponse.data.ipfsHash}`);
-        return ipfsResponse.data.ipfsHash;
+      if (ipfsResponse && ipfsResponse.success && ipfsResponse.ipfsHash) {
+        console.log(`Image enhancement complete, new IPFS hash: ${ipfsResponse.ipfsHash}`);
+        return ipfsResponse.ipfsHash;
       } else {
         console.log('Failed to upload enhanced image, returning original hash');
         return hash;
@@ -368,4 +390,7 @@ process.on('SIGINT', () => {
 startServer();
 
 // Export the server for testing purposes
+// At the top of your file with other imports
+
+
 export { server };
