@@ -366,4 +366,47 @@ startServer();
 // At the top of your file with other imports
 
 
+// Add this function before it's used in enhanceImageWithAI
+const uploadEnhancedImage = async (enhancedImagePath) => {
+  try {
+    console.log('Uploading enhanced image to IPFS using base64...');
+    
+    // Check if file exists
+    if (!fs.existsSync(enhancedImagePath)) {
+      throw new Error(`Enhanced image file not found: ${enhancedImagePath}`);
+    }
+    
+    // Read file as base64
+    const imageBuffer = fs.readFileSync(enhancedImagePath);
+    const base64Image = `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
+    
+    // Create payload
+    const payload = {
+      image: base64Image,
+      filename: path.basename(enhancedImagePath)
+    };
+    
+    // Use the dedicated base64 endpoint
+    const response = await axios.post('http://ipfs-service:3002/upload-base64', payload, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      timeout: 30000
+    });
+    
+    console.log('Enhanced image uploaded successfully');
+    return response.data;
+  } catch (error) {
+    console.error('Error uploading to IPFS:', error.message);
+    console.log('Failed to upload enhanced image, returning original hash');
+    return { 
+      success: false, 
+      error: error.message,
+      originalHash: true
+    };
+  }
+};
+
 export { server };
