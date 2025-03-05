@@ -33,3 +33,26 @@ createMemory = async (files, metadata) => {
     }
   })
 }
+
+export const fetchMemoryById = async (id) => {
+  try {
+    const address = localStorage.getItem('userAddress') || '0x69592f057c1Fd4D1a82758D91acAf5D37d2639F8';
+    const response = await axios.get(`http://localhost:3000/memories/${address}`);
+    
+    if (response.data && response.data.success && response.data.memories) {
+      const memory = response.data.memories.find(m => m.id == id);
+      
+      // Debug log to check what's coming back
+      console.log("Memory data:", memory);
+      
+      if (memory) {
+        return memory;
+      }
+      throw new Error('Memory not found');
+    }
+    throw new Error('Failed to fetch memories');
+  } catch (error) {
+    console.error('Error fetching memory:', error);
+    throw error;
+  }
+};
