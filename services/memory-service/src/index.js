@@ -35,7 +35,7 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
     console.log('Request fields:', req.body);
     console.log('Uploaded files:', req.files ? req.files.length : 'none');
     
-    const { title, description, date, owner } = req.body;
+    const { title, description, date, owner, enhanceImage } = req.body;
     const files = req.files || [];
     
     let ipfsHash = null;
@@ -64,48 +64,23 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
     if (!ipfsHash) {
       // If no ipfsHash, generate a temporary one using a timestamp
       ipfsHash = `temp-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-      
-      // Or reject the request entirely
-      return res.status(400).json({
-        success: false,
-        error: 'Failed to generate IPFS hash for memory content',
-        details: 'Storage service unavailable or failed to process files'
-      });
     }
-          let narrativeText = '';
-
-          // Check if narrative generation is requested
-          if (req.body.generateNarrative === 'true') {
-            console.log('NARRATIVE FEATURE: Generating narrative from description');
-  
-            // Simple template-based narrative generation
-            const templates = [
-              "This captured moment shows {description}. It represents a unique chapter in your life journey, preserved forever in your memory capsule.",
-              "The memory of {description} is now immortalized. Years from now, you'll look back at this moment and reconnect with the emotions it carries.",
-              "Every memory tells a story. This one, capturing {description}, is a testament to the experiences that shape who you are."
-            ];
-  
-            // Select a template and replace placeholder with actual description
-            const template = templates[Math.floor(Math.random() * templates.length)];
-            narrativeText = template.replace('{description}', req.body.description);
-  
-            console.log('NARRATIVE FEATURE: Generated narrative:', narrativeText);
-          }
-
-          // Create record with exact column names matching Supabase schema
-          const memoryData = { 
-            title: req.body.title || "Untitled Memory", 
-            description: req.body.description || "", 
-            created_at: new Date().toISOString(), 
-            ipfsHash: ipfsHash,  // This will never be null now
-            url: fileUrls.length > 0 ? fileUrls[0] : "",
-            ownerAddress: owner,
-            narrative: narrativeText, // Use the generated narrative instead of empty string
-            type: "standard",
-            sharecount: 0
-          };
-
-          console.log("Inserting into Supabase:", memoryData);
+    
+    // Create record with exact column names matching Supabase schema
+    const memoryData = { 
+      title: title || "Untitled Memory", 
+      description: description || "", 
+      created_at: date || new Date().toISOString(), 
+      ipfsHash: ipfsHash,
+      url: fileUrls.length > 0 ? fileUrls[0] : "",
+      ownerAddress: owner,
+      narrative: "", // Start with empty narrative
+      type: "standard",
+      sharecount: 0
+    };
+    
+    console.log("Inserting into Supabase:", memoryData);
+    
     // Execute database insertion with correct column mapping
     const { data, error } = await supabase
       .from('memories')
@@ -117,9 +92,80 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
       throw error;
     }
     
+    const memory = data[0];
+    
+    // RESTORE THIS PART - Generate narrative in background if description exists
+    if (description && description.length > 10) {
+      console.log('Description meets minimum length for narrative generation');
+      
+      // Generate narrative in background 
+      setTimeout(async () => {
+        try {
+          console.log(`Starting background narrative generation for memory ${memory.id}`);
+          
+          // Call AI service to generate narrative
+          const aiResponse = await axios.post('http://ai-service:3001/api/generate-narrative', {
+            description
+          }, { timeout: 10000 });
+          
+          const narrative = aiResponse.data.narrative || '';
+          
+          if (narrative) {
+            console.log(`Updating memory ${memory.id} with generated narrative`);
+            const { error: updateError } = await supabase
+              .from('memories')
+              .update({ narrative })
+              .eq('id', memory.id);
+              
+            if (updateError) {
+              console.error('Failed to update memory with narrative:', updateError);
+            } else {
+              console.log(`Successfully updated memory ${memory.id} with narrative`);
+            }
+          }
+        } catch (e) {
+          console.error('Background narrative processing error:', e);
+        }
+      }, 100); // Small delay to ensure response is sent first
+    }
+    
+    // If enhanceImage is true, also trigger image enhancement
+    if (enhanceImage === 'true' && ipfsHash) {
+      setTimeout(async () => {
+        try {
+          console.log(`Starting background image enhancement for memory ${memory.id}`);
+          
+          // Call AI service to enhance image
+          const enhanceResponse = await axios.post('http://ai-service:3001/api/enhance-image', {
+            description,
+            ipfsHash
+          }, { timeout: 30000 });
+          
+          if (enhanceResponse.data.success && enhanceResponse.data.enhancedImageHash) {
+            console.log(`Updating memory ${memory.id} with enhanced image`);
+            const { error: updateError } = await supabase
+              .from('memories')
+              .update({ 
+                ipfsHash: enhanceResponse.data.enhancedImageHash,
+                url: `https://ipfs.io/ipfs/${enhanceResponse.data.enhancedImageHash}`
+              })
+              .eq('id', memory.id);
+              
+            if (updateError) {
+              console.error('Failed to update memory with enhanced image:', updateError);
+            } else {
+              console.log(`Successfully updated memory ${memory.id} with enhanced image`);
+            }
+          }
+        } catch (e) {
+          console.error('Background image enhancement error:', e);
+        }
+      }, 200); // Small delay after narrative generation
+    }
+    
     res.status(201).json({
       success: true,
-      memory: data[0]
+      memory: memory
     });
   } catch (error) {
     console.error('Memory creation error:', error);
@@ -130,25 +176,7 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
     });
   }
 });
-app.post('/memories/create', upload.array('files'), async (req, res) => {
-  try {
-    // All your existing POST handler code...
-    
-    res.status(201).json({
-      success: true,
-      memory: data[0]
-    });
-  } catch (error) {
-    console.error('Memory creation error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create memory',
-      details: error.message
-    });
-  }
-}); // Single closing brace for the POST endpoint
 
-// Properly spaced next route definition
 app.get('/memories/:address', async (req, res) => {
   try {
     const { address } = req.params;
@@ -168,6 +196,7 @@ app.get('/memories/:address', async (req, res) => {
     res.status(500).json({ success: false, error: error.message });
   }
 });
+
 // Create a memory by coordinating with other services
 const createMemory = async (memoryData) => {
   try {

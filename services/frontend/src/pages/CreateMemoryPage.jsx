@@ -37,57 +37,44 @@ function CreateMemoryPage() {
   // Submit the form in multipart/form-data format
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    
     setIsUploading(true);
     setUploadProgress(0);
-
+    
     try {
-      // Prepare multipart form data
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', description);
-      formData.append('owner', account || '');
+      formData.append('owner', account);
+      formData.append('generateNarrative', 'true'); // Explicitly add this flag
       formData.append('enhanceImage', enhanceImage ? 'true' : 'false');
-      // If you have a "generateNarrative" flag, append that too:
-      // formData.append('generateNarrative', 'true');
-
-      // Append all selected files under "files"
-      files.forEach((file) => {
+      
+      files.forEach(file => {
         formData.append('files', file);
       });
-
-      // Make POST request with multipart/form-data
-      const response = await axios.post(
-        'http://localhost:3000/memories/create',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          onUploadProgress: (progressEvent) => {
-            if (progressEvent.total) {
-              const percentCompleted = Math.round(
-                (progressEvent.loaded * 100) / progressEvent.total
-              );
-              setUploadProgress(percentCompleted);
-            }
-          },
+      
+      // Add debug logging
+      console.log("Sending request with enhanceImage:", enhanceImage);
+      
+      const response = await axios.post('http://localhost:3000/memories/create', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
         }
-      );
-
+      });
+    
       if (response.data.success) {
-        toast.success('Memory created successfully!');
         navigate('/memories');
       } else {
-        setError('Failed to create memory');
-        toast.error('Memory creation failed.');
+        setError(response.data.message || 'Error creating memory');
       }
-    } catch (err) {
-      console.error('Error creating memory:', err);
-      setError('Failed to create memory');
-      toast.error('Failed to create memory');
+    } catch (error) {
+      console.error('Upload error:', error);
+      setError('Failed to create memory. Please try again.');
     } finally {
-      setLoading(false);
       setIsUploading(false);
     }
   };
