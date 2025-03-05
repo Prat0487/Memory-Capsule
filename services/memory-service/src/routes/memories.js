@@ -118,30 +118,47 @@ const generateNarrative = async (description) => {
       });
     }
   });
-// Add a new endpoint to get a memory by its ID for public sharing
+
 router.get('/api/memories/shared/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`Fetching shared memory with ID: ${id}`);
     
-    // Get the memory from your storage (Supabase, blockchain mock, etc.)
-    const memory = await getMemoryById(id);
+    // Get the memory from Supabase
+    const { data: memory, error } = await supabase
+      .from('memories')
+      .select('*')
+      .eq('id', id)
+      .single();
     
-    if (!memory) {
-      return res.status(404).json({ error: 'Memory not found' });
+    if (error || !memory) {
+      console.error('Error fetching shared memory:', error);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Memory not found' 
+      });
     }
     
-    // Return only public-safe information
+    // Return the memory with consistent field naming
     return res.status(200).json({
-      id: memory.id,
-      title: memory.title,
-      description: memory.description,
-      files: memory.files,
-      createdAt: memory.createdAt,
-      // Don't include owner wallet address or sensitive data
+      success: true,
+      memory: {
+        id: memory.id,
+        title: memory.title,
+        description: memory.description,
+        ipfsHash: memory.ipfsHash,
+        url: memory.url || `https://gateway.pinata.cloud/ipfs/${memory.ipfsHash}`,
+        createdAt: memory.created_at || memory.createdAt,
+        created_at: memory.created_at || memory.createdAt,
+        narrative: memory.narrative
+      }
     });
   } catch (error) {
-    console.error('Error fetching shared memory:', error);
-    return res.status(500).json({ error: 'Failed to retrieve memory' });
+    console.error('Error processing shared memory request:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Failed to retrieve memory' 
+    });
   }
 });
 

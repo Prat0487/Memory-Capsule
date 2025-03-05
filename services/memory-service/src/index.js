@@ -26,9 +26,12 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 });
 // Middleware
-app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors());
+
+// Make sure our routes are properly registered
+import memoryRoutes from './routes/memories.js';
+app.use(memoryRoutes);
 
 app.post('/memories/create', upload.array('files'), async (req, res) => {
   try {

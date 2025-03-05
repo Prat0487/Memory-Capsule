@@ -9,26 +9,28 @@ const ShareMemory = ({ memoryId }) => {
   
   const handleCopyLink = async () => {
     try {
-      // First, copy to clipboard - this is the core functionality
+      // Copy to clipboard functionality - this works
       await navigator.clipboard.writeText(shareUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
-      
-      // Show success toast immediately since clipboard operation worked
       toast.success('Link copied to clipboard!');
       
-      // Try to track the share, but don't let failures affect user experience
+      // IMPORTANT: Implement direct local share tracking without API call
+      // This bypasses the need for the blockchain service endpoint
       try {
+        // First, try the API
         await axios.post('/api/blockchain/track-share', { memoryId });
-        // Optional: console.log("Share tracked successfully");
-      } catch (trackError) {
-        // Silently handle tracking failures - don't show to user
-        console.log("Share tracking unavailable - this won't affect functionality");
+        console.log("Share tracked via API");
+      } catch (error) {
+        // If API fails, update localStorage as a fallback
+        console.log("API share tracking failed, using local tracking");
+        const sharedMemories = JSON.parse(localStorage.getItem('sharedMemories') || '{}');
+        sharedMemories[memoryId] = (sharedMemories[memoryId] || 0) + 1;
+        localStorage.setItem('sharedMemories', JSON.stringify(sharedMemories));
       }
-    } catch (err) {
-      // Only show error if the clipboard operation failed
+    } catch (clipboardError) {
       toast.error('Failed to copy link');
-      console.error('Error copying to clipboard:', err);
+      console.error('Error copying to clipboard:', clipboardError);
     }
   };
   

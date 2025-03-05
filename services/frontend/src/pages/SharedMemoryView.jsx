@@ -1,23 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaArrowLeft } from 'react-icons/fa';
 
-const SharedMemoryView = () => {
+function SharedMemoryView() {
   const { id } = useParams();
   const [memory, setMemory] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
+  const [error, setError] = useState('');
+
   useEffect(() => {
     const fetchSharedMemory = async () => {
       try {
-        setLoading(true);
+        console.log(`Fetching shared memory with ID: ${id}`);
         const response = await axios.get(`/api/memories/shared/${id}`);
-        setMemory(response.data);
+        
+        console.log('API response:', response.data); // Debug the response
+
+        // Handle different API response formats
+        if (response.data && response.data.success && response.data.memory) {
+          setMemory(response.data.memory);
+        } else if (response.data && !response.data.success) {
+          setError(response.data.error || 'Memory not found');
+        } else if (response.data) {
+          // If data is returned directly without a wrapper
+          setMemory(response.data);
+        } else {
+          setError('Unexpected API response format');
+        }
       } catch (err) {
         console.error('Error fetching shared memory:', err);
-        setError('This memory could not be loaded or does not exist.');
+        setError('Failed to load memory');
       } finally {
         setLoading(false);
       }
@@ -25,22 +37,39 @@ const SharedMemoryView = () => {
     
     fetchSharedMemory();
   }, [id]);
-  
+
+  // Format date safely to prevent "Invalid Date"
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown date';
+    
+    const date = new Date(dateString);
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Unknown date';
+    }
+    
+    return date.toLocaleDateString();
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="container mx-auto px-4 py-12 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div>
+        <p className="mt-4">Loading shared memory...</p>
       </div>
     );
   }
   
-  if (error) {
+  if (error || !memory) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-4">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center max-w-lg">
-          <h2 className="text-xl font-bold text-red-700 mb-2">Memory Not Found</h2>
-          <p className="text-gray-700">{error}</p>
-          <Link to="/" className="mt-4 inline-block text-blue-600 hover:underline">
+      <div className="container mx-auto px-4 py-12 text-center">
+        <div className="bg-white p-8 rounded-xl shadow-md max-w-md mx-auto">
+          <svg className="h-16 w-16 text-red-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h2 className="text-xl font-bold mb-2">Memory Not Found</h2>
+          <p className="mb-6 text-gray-600">This memory could not be loaded or does not exist.</p>
+          <Link to="/" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
             Return to Home
           </Link>
         </div>
@@ -48,72 +77,66 @@ const SharedMemoryView = () => {
     );
   }
   
+  // Debug what fields we have
+  console.log('Memory data:', {
+    title: memory.title,
+    description: memory.description,
+    ipfsHash: memory.ipfsHash,
+    createdAt: memory.createdAt || memory.created_at,
+    date: formatDate(memory.createdAt || memory.created_at)
+  });
+
   return (
-    <div className="container mx-auto p-4 max-w-4xl">
-      <Link to="/" className="inline-flex items-center text-blue-600 hover:underline mb-6">
-        <FaArrowLeft className="mr-2" />
-        Back to Home
-      </Link>
-      
-      <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-        <div className="p-6">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">{memory?.title}</h1>
-          <p className="text-gray-600 mb-4">Created on {new Date(memory?.createdAt).toLocaleDateString()}</p>
-          
-          <div className="border-t border-gray-200 pt-4 mt-4">
-            <h2 className="text-xl font-semibold mb-3">Description</h2>
-            <p className="text-gray-700 whitespace-pre-line">{memory?.description}</p>
+    <div className="container mx-auto px-4 py-12">
+      <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-md overflow-hidden">
+        {/* Image display with fallbacks for different field names */}
+        {(memory.ipfsHash || memory.url) && (
+          <div className="h-80 overflow-hidden">
+            <img 
+              src={memory.url || 
+                (memory.ipfsHash ? `https://ipfs.io/ipfs/${memory.ipfsHash}` : null) || 
+                'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23e2e8f0" width="400" height="300"/%3E%3Ctext fill="%2394a3b8" font-family="Arial" font-size="24" x="50%25" y="50%25" text-anchor="middle"%3ENo Image Available%3C/text%3E%3C/svg%3E'}
+              alt={memory.title || "Shared memory"}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Fallback if initial image load fails
+                if (e.target.src.includes('ipfs.io') && memory.ipfsHash) {
+                  e.target.src = `https://cloudflare-ipfs.com/ipfs/${memory.ipfsHash}`;
+                } else if (e.target.src.includes('cloudflare-ipfs') && memory.ipfsHash) {
+                  e.target.src = `https://gateway.pinata.cloud/ipfs/${memory.ipfsHash}`;
+                } else {
+                  e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23e2e8f0" width="400" height="300"/%3E%3Ctext fill="%2394a3b8" font-family="Arial" font-size="24" x="50%25" y="50%25" text-anchor="middle"%3EImage Unavailable%3C/text%3E%3C/svg%3E';
+                }
+              }}
+            />
+          </div>
+        )}
+        
+        <div className="p-8">
+          <div className="flex flex-col mb-6">
+            <h1 className="text-3xl font-bold text-gray-900">{memory.title || "Shared Memory"}</h1>
+            <p className="text-gray-600 mt-1">
+              Created on {formatDate(memory.createdAt || memory.created_at)}
+            </p>
           </div>
           
-          {memory?.files && memory.files.length > 0 && (
-            <div className="border-t border-gray-200 pt-4 mt-6">
-              <h2 className="text-xl font-semibold mb-3">Files</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {memory.files.map((file, index) => (
-                  <div key={index} className="border rounded-lg overflow-hidden">
-                    {file.type.startsWith('image/') ? (
-                      <img 
-                        src={`https://gateway.pinata.cloud/ipfs/${file.ipfsHash}`} 
-                        alt={file.name}
-                        className="w-full h-48 object-cover"
-                      />
-                    ) : file.type.startsWith('video/') ? (
-                      <video 
-                        src={`https://gateway.pinata.cloud/ipfs/${file.ipfsHash}`}
-                        controls
-                        className="w-full h-48 object-cover"
-                      >
-                        Your browser does not support the video tag.
-                      </video>
-                    ) : (
-                      <div className="h-48 flex items-center justify-center bg-gray-100">
-                        <a 
-                          href={`https://gateway.pinata.cloud/ipfs/${file.ipfsHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {file.name}
-                        </a>
-                      </div>
-                    )}
-                    <div className="p-3 border-t">
-                      <p className="text-sm font-medium text-gray-700 truncate">{file.name}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="prose max-w-none mb-8">
+            <p className="text-lg">{memory.description || "This is a shared memory from Memory Capsule. Create your own memories by visiting our website."}</p>
+          </div>
+          
+          {memory.narrative && (
+            <div className="mb-8 p-6 bg-blue-50 rounded-lg">
+              <h3 className="font-medium text-blue-800 mb-2">Memory Narrative</h3>
+              <p className="text-gray-800 italic">{memory.narrative}</p>
             </div>
           )}
           
-          <div className="mt-8 pt-4 border-t border-gray-200">
-            <p className="text-sm text-gray-500">
-              This is a shared memory from Memory Capsule. Create your own memories by visiting our website.
-            </p>
-            <Link
-              to="/"
-              className="mt-2 inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded transition-colors"
-            >
+          <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+            <Link to="/" className="text-blue-600 hover:text-blue-800">
+              ← Go to Memory Capsule
+            </Link>
+            
+            <Link to="/create" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
               Create Your Memory Capsule
             </Link>
           </div>
@@ -121,6 +144,6 @@ const SharedMemoryView = () => {
       </div>
     </div>
   );
-};
+}
 
 export default SharedMemoryView;
