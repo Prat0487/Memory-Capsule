@@ -24,7 +24,51 @@ const generateNarrative = async (description) => {
     return '';
   }
 };
-  router.post('/memories/create', upload.array('files'), async (req, res) => {
+
+/**
+ * Updates a memory's image hash
+ * @param {string} memoryId - ID of memory to update
+ * @param {string} newIpfsHash - New IPFS hash for enhanced image
+ * @returns {Promise<boolean>} - Success status
+ */
+const updateMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash } = req.body;
+    
+    if (!memoryId || !ipfsHash) {
+      return res.status(400).json({
+         success: false,
+         message: 'Memory ID and IPFS hash are required'
+       });
+    }
+    
+    // Update the memory in the database
+    const result = await db.query(
+      'UPDATE memories SET ipfs_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [ipfsHash, memoryId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+         success: false,
+         message: 'Memory not found'
+       });
+    }
+    
+    res.status(200).json({
+      success: true,
+      memory: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating memory image:', error);
+    res.status(500).json({
+       success: false,
+       message: 'Failed to update memory image'
+     });
+  }
+};
+
+router.post('/memories/create', upload.array('files'), async (req, res) => {
     try {
       // Extracting and logging all request fields
       console.log('Request fields:', req.body);
@@ -118,6 +162,7 @@ const generateNarrative = async (description) => {
       });
     }
   });
+
 // Add a new endpoint to get a memory by its ID for public sharing
 router.get('/api/memories/shared/:id', async (req, res) => {
   try {
@@ -144,5 +189,7 @@ router.get('/api/memories/shared/:id', async (req, res) => {
     return res.status(500).json({ error: 'Failed to retrieve memory' });
   }
 });
+
+router.post('/update-image', updateMemoryImage);
 
 export default router;

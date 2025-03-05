@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWallet } from '../hooks/useWallet';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 function CreateMemoryPage() {
   const { account } = useWallet();
@@ -13,6 +14,10 @@ function CreateMemoryPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
+  const [enhanceImage, setEnhanceImage] = useState(false);
+  const [enhancementLoading, setEnhancementLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [ipfsHash, setIpfsHash] = useState('');
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -30,41 +35,68 @@ function CreateMemoryPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    setIsUploading(true);
-    setUploadProgress(0);
+    setLoading(true);
     
     try {
-      const formData = new FormData();
-      formData.append('title', title);
-      formData.append('description', description);
-      formData.append('owner', account);
-      formData.append('generateNarrative', 'true'); // Explicitly add this flag
+      // First, proceed with normal memory creation
+      const memoryData = {
+        title,
+        description,
+        ipfsHash,
+        // Include other fields you have
+      };
       
-      files.forEach(file => {
-        formData.append('files', file);
-      });
+      const response = await axios.post('http://localhost:3000/api/v1/memories', memoryData);
       
-      const response = await axios.post('http://localhost:3000/memories/create', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percentCompleted);
+      // If memory creation was successful and enhancement is requested
+      if (response.data.success && enhanceImage && description && ipfsHash) {
+        setEnhancementLoading(true);
+        
+        try {
+          // Call AI service to enhance the image
+          const enhanceResponse = await axios.post('http://localhost:3001/api/enhance-image', {
+            description,
+            ipfsHash
+          });
+          
+          // If enhancement succeeded and returned a different hash
+          if (
+            enhanceResponse.data.success && 
+            enhanceResponse.data.enhancedImageHash && 
+            enhanceResponse.data.enhancedImageHash !== ipfsHash
+          ) {
+            // Update the memory with the enhanced image
+            await axios.post('http://localhost:3000/memories/update-image', {
+              memoryId: response.data.memory.id,
+              ipfsHash: enhanceResponse.data.enhancedImageHash
+            });
+            
+            // Show success message
+            toast.success('Memory created with AI-enhanced image!');
+          } else {
+            // Enhancement didn't change the image or failed
+            toast.success('Memory created successfully!');
+          }
+        } catch (enhanceError) {
+          console.error('Error enhancing image:', enhanceError);
+          // Still show success for memory creation
+          toast.success('Memory created successfully! (Image enhancement failed)');
+        } finally {
+          setEnhancementLoading(false);
         }
-      });
-    
-      if (response.data.success) {
-        navigate('/memories');
       } else {
-        setError(response.data.message || 'Error creating memory');
+        // Regular success message for normal creation
+        toast.success('Memory created successfully!');
       }
+      
+      // Navigate to memories list regardless of enhancement result
+      navigate('/memories');
+      
     } catch (error) {
-      console.error('Upload error:', error);
-      setError('Failed to create memory. Please try again.');
+      console.error('Error creating memory:', error);
+      toast.error('Failed to create memory');
     } finally {
-      setIsUploading(false);
+      setLoading(false);
     }
   };
   return (
