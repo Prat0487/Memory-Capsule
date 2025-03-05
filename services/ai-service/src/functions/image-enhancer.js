@@ -1,154 +1,161 @@
-const { getVertexClient, getGenerativeModel } = require('../clients/vertex-client');
-const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const FormData = require('form-data');
+import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { getGenerativeModel } from '../clients/vertex-client.js';
+import { pinFileToIPFS } from '../utils/ipfs-utils.js';
 
-/**
- * Enhances an image using Vertex AI based on text description
- * @param {string} description - User provided description
- * @param {string} ipfsHash - Original image IPFS hash
- * @returns {Promise<string>} - Enhanced image IPFS hash or original hash on failure
- */
-async function enhanceImageWithAI(description, ipfsHash) {
-  const tempDir = path.join(os.tmpdir(), 'memory-capsule-images');
-  const originalImagePath = path.join(tempDir, `original-${Date.now()}.jpg`);
-  const enhancedImagePath = path.join(tempDir, `enhanced-${Date.now()}.jpg`);
-  
+export const enhanceImageWithAI = async (description, imageUrl) => {
   try {
-    // Ensure temp directory exists
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    console.log(`Starting image enhancement for: ${imageUrl}`);
+    console.log(`Description: ${description}`);
     
-    console.log(`Downloading original image from IPFS: ${ipfsHash}`);
+    // 1. Download the image from IPFS
+    const imagePath = await downloadImage(imageUrl);
     
-    // Download original image from IPFS
-    const imageUrl = `https://ipfs.io/ipfs/${ipfsHash}`;
-    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-    const imageBuffer = Buffer.from(imageResponse.data);
+    // 2. Get image as base64
+    const imageBase64 = fs.readFileSync(imagePath, { encoding: 'base64' });
     
-    // Save original image to temp file
-    fs.writeFileSync(originalImagePath, imageBuffer);
-    console.log(`Original image saved to: ${originalImagePath}`);
-    
-    // Get Vertex AI model for image processing
-    // Note: Use 'gemini-1.5-pro-vision' or another appropriate model that can handle images
-    const model = getGenerativeModel('gemini-1.5-pro-vision');
-    
-    console.log('Processing image with Vertex AI...');
-    
-    // Generate enhancement prompt based on description
-    const enhancementPrompt = `
-      Enhance this image based on the following description: "${description}".
+    // 3. Prepare the prompt for image enhancement
+    const prompt = `
+      Enhance this image based on the following description:
+      ${description}
       
-      Apply artistic improvements that match the emotional tone and context described.
-      Focus on:
-      - Adjusting colors to match the mood
-      - Enhancing details that relate to the description
-      - Adding artistic effects that complement the memory
-      
-      Return the enhanced version of the image only.
+      Make the following improvements:
+      - Improve lighting and color balance
+      - Enhance the overall composition
+      - Bring focus to the important elements described
+      - Add atmosphere that matches the emotional tone of the description
+      - Make subtle improvements while maintaining authenticity
     `;
     
-    // Process image with Vertex AI
+    // 4. Call Vertex AI vision model (Gemini Pro Vision)
+    const model = getGenerativeModel('gemini-1.5-pro-vision');
+    
     const result = await model.generateContent({
       contents: [{
         role: 'user',
         parts: [
-          { text: enhancementPrompt },
-          { 
-            inlineData: { 
-              mimeType: 'image/jpeg',
-              data: imageBuffer.toString('base64')
-            } 
-          }
+          { text: prompt },
+          { inlineData: { mimeType: getMimeType(imagePath), data: imageBase64 } }
         ]
       }]
     });
     
-    // Get enhanced image data from response
-    if (result.response.candidates[0].content.parts) {
-      const enhancedImagePart = result.response.candidates[0].content.parts.find(
-        part => part.inlineData && part.inlineData.mimeType.startsWith('image/')
-      );
-      
-      if (enhancedImagePart && enhancedImagePart.inlineData && enhancedImagePart.inlineData.data) {
-        // Save enhanced image
-        const enhancedImageBuffer = Buffer.from(enhancedImagePart.inlineData.data, 'base64');
-        fs.writeFileSync(enhancedImagePath, enhancedImageBuffer);
-        console.log(`Enhanced image saved to: ${enhancedImagePath}`);
-        
-        // Upload to IPFS
-        const newHash = await uploadToIPFS(enhancedImagePath);
-        console.log(`Enhanced image uploaded to IPFS: ${newHash}`);
-        return newHash;
-      }
+    // 5. Extract image from response
+    const enhancedImageBase64 = extractImageFromResponse(result.response);
+    
+    if (!enhancedImageBase64) {
+      console.log("No image in response, returning original hash");
+      return imageUrl.split('/').pop(); // Return original hash
     }
     
-    console.log('No enhanced image found in response, returning original hash');
-    return ipfsHash;
+    // 6. Save enhanced image to temp file
+    const enhancedImagePath = await saveBase64Image(enhancedImageBase64);
     
+    // 7. Upload enhanced image to IPFS
+    const enhancedIpfsHash = await uploadToIPFS(enhancedImagePath);
+    
+    // 8. Clean up temp files
+    fs.unlinkSync(imagePath);
+    fs.unlinkSync(enhancedImagePath);
+    
+    console.log(`Image enhanced successfully. New IPFS hash: ${enhancedIpfsHash}`);
+    return enhancedIpfsHash;
   } catch (error) {
-    console.error('Error in enhanceImageWithAI:', error);
-    // Important: Always return original hash on failure
-    return ipfsHash;
-  } finally {
-    // Clean up temp files
-    try {
-      if (fs.existsSync(originalImagePath)) fs.unlinkSync(originalImagePath);
-      if (fs.existsSync(enhancedImagePath)) fs.unlinkSync(enhancedImagePath);
-    } catch (e) {
-      console.error('Error cleaning up temp files:', e);
-    }
+    console.error('Error enhancing image:', error);
+    // Return the original hash if enhancement fails
+    return imageUrl.split('/').pop();
+  }
+};
+
+// Helper function to download image from URL
+async function downloadImage(url) {
+  const response = await axios.get(url, { responseType: 'arraybuffer' });
+  const tempDir = path.join(__dirname, '../../temp');
+  
+  // Create temp directory if it doesn't exist
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+  
+  const fileName = `original_${Date.now()}.${getExtensionFromUrl(url)}`;
+  const filePath = path.join(tempDir, fileName);
+  
+  fs.writeFileSync(filePath, response.data);
+  return filePath;
+}
+
+// Helper function to get file extension from URL
+function getExtensionFromUrl(url) {
+  const extension = path.extname(url).slice(1);
+  return extension || 'jpg';
+}
+
+// Helper function to get MIME type
+function getMimeType(filePath) {
+  const extension = path.extname(filePath).toLowerCase();
+  const mimeTypes = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.gif': 'image/gif',
+    '.webp': 'image/webp'
+  };
+  return mimeTypes[extension] || 'image/jpeg';
+}
+
+// Helper function to extract image from AI response
+function extractImageFromResponse(response) {
+  try {
+    // This will depend on the exact response format from Vertex AI
+    // You may need to adjust based on the actual response
+    const candidates = response.candidates || [];
+    if (candidates.length === 0) return null;
+    
+    const parts = candidates[0].content?.parts || [];
+    const imagePart = parts.find(part => part.inlineData?.mimeType?.startsWith('image/'));
+    
+    return imagePart?.inlineData?.data || null;
+  } catch (error) {
+    console.error('Error extracting image from response:', error);
+    return null;
   }
 }
 
-/**
- * Uploads a file to IPFS
- * @param {string} filePath - Path to file to upload
- * @returns {Promise<string>} - IPFS hash
- */
+// Helper function to save base64 image to file
+async function saveBase64Image(base64Data) {
+  const tempDir = path.join(__dirname, '../../temp');
+  const filePath = path.join(tempDir, `enhanced_${Date.now()}.jpg`);
+  
+  // Remove data:image/jpeg;base64, prefix if present
+  const base64Image = base64Data.replace(/^data:image\/\w+;base64,/, '');
+  
+  // Write to file
+  fs.writeFileSync(filePath, Buffer.from(base64Image, 'base64'));
+  return filePath;
+}
+
+// Helper function to upload file to IPFS
 async function uploadToIPFS(filePath) {
   try {
-    // Create form data for upload
-    const form = new FormData();
-    form.append('file', fs.createReadStream(filePath));
+    // Read file
+    const fileData = fs.readFileSync(filePath);
     
-    // Add metadata
-    const pinataMetadata = JSON.stringify({
-      name: `AI-Enhanced-${Date.now()}`
-    });
-    form.append('pinataMetadata', pinataMetadata);
+    // Get file metadata
+    const stats = fs.statSync(filePath);
+    const fileName = path.basename(filePath);
+    const mimeType = getMimeType(filePath);
     
-    // Use environment variables for API keys
-    const pinataApiKey = process.env.PINATA_API_KEY;
-    const pinataSecretKey = process.env.PINATA_SECRET_API_KEY;
+    // Create form data for Pinata
+    const formData = new FormData();
+    formData.append('file', new Blob([fileData], { type: mimeType }), fileName);
     
-    if (!pinataApiKey || !pinataSecretKey) {
-      throw new Error('Pinata API keys not found in environment variables');
-    }
-    
-    // Upload to Pinata
-    const response = await axios.post(
-      'https://api.pinata.cloud/pinning/pinFileToIPFS',
-      form,
-      {
-        maxBodyLength: Infinity,
-        headers: {
-          'Content-Type': `multipart/form-data; boundary=${form._boundary}`,
-          'pinata_api_key': pinataApiKey,
-          'pinata_secret_api_key': pinataSecretKey
-        }
-      }
-    );
-    
-    return response.data.IpfsHash;
+    // Upload to IPFS via Pinata
+    const result = await pinFileToIPFS(formData);
+    return result.IpfsHash;
   } catch (error) {
     console.error('Error uploading to IPFS:', error);
     throw error;
   }
 }
-
-module.exports = { enhanceImageWithAI };

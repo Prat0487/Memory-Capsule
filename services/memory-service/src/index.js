@@ -132,34 +132,49 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
     // If enhanceImage is true, also trigger image enhancement
     if (enhanceImage === 'true' && ipfsHash) {
       setTimeout(async () => {
-        try {
-          console.log(`Starting background image enhancement for memory ${memory.id}`);
-          
-          // Call AI service to enhance image
-          const enhanceResponse = await axios.post('http://ai-service:3001/api/enhance-image', {
-            description,
-            ipfsHash
-          }, { timeout: 30000 });
-          
-          if (enhanceResponse.data.success && enhanceResponse.data.enhancedImageHash) {
-            console.log(`Updating memory ${memory.id} with enhanced image`);
-            const { error: updateError } = await supabase
-              .from('memories')
-              .update({ 
-                ipfsHash: enhanceResponse.data.enhancedImageHash,
-                url: `https://ipfs.io/ipfs/${enhanceResponse.data.enhancedImageHash}`
-              })
-              .eq('id', memory.id);
+        const enhanceImageWithAI = async (memoryId, description, ipfsHash) => {
+          try {
+            console.log(`Enhancing image for memory ${memoryId}`);
+            
+            // Call AI service for image enhancement
+            const aiResponse = await axios.post('http://ai-service:3001/api/enhance-image', {
+              description,
+              ipfsHash
+            }, { timeout: 60000 }); // Increase timeout for image processing
+            
+            if (aiResponse.data.success && 
+                aiResponse.data.enhancedImageHash && 
+                aiResponse.data.enhancedImageHash !== ipfsHash) {
               
-            if (updateError) {
-              console.error('Failed to update memory with enhanced image:', updateError);
+              console.log(`Updating memory ${memoryId} with enhanced image`);
+              
+              // Update the memory with the enhanced image hash
+              const { data, error } = await supabase
+                .from('memories')
+                .update({ 
+                  ipfsHash: aiResponse.data.enhancedImageHash,
+                  url: `https://gateway.pinata.cloud/ipfs/${aiResponse.data.enhancedImageHash}`
+                })
+                .eq('id', memoryId);
+              
+              if (error) {
+                console.error('Error updating memory with enhanced image:', error);
+                return false;
+              }
+              
+              console.log(`Successfully updated memory ${memoryId} with enhanced image`);
+              return true;
             } else {
-              console.log(`Successfully updated memory ${memory.id} with enhanced image`);
+              console.log('No enhancement performed or same image returned');
+              return false;
             }
+          } catch (error) {
+            console.error('Background image enhancement error:', error);
+            return false;
           }
-        } catch (e) {
-          console.error('Background image enhancement error:', e);
-        }
+        };
+
+        await enhanceImageWithAI(memory.id, description, ipfsHash);
       }, 200); // Small delay after narrative generation
     }
     

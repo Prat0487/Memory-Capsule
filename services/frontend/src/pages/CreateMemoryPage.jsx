@@ -19,6 +19,7 @@ function CreateMemoryPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   // Handle local preview and storing selected files
   const handleFileChange = (e) => {
@@ -37,9 +38,13 @@ function CreateMemoryPage() {
   // Submit the form in multipart/form-data format
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     
-    setIsUploading(true);
-    setUploadProgress(0);
+    if (enhanceImage) {
+      setIsEnhancing(true);
+      // Show a message that enhancement will happen in background
+      toast.info('Your image will be enhanced with AI in the background');
+    }
     
     try {
       const formData = new FormData();
@@ -67,15 +72,21 @@ function CreateMemoryPage() {
       });
     
       if (response.data.success) {
+        if (enhanceImage) {
+          toast.success('Memory created! The enhanced image will appear soon.');
+        } else {
+          toast.success('Memory created successfully!');
+        }
         navigate('/memories');
       } else {
         setError(response.data.message || 'Error creating memory');
       }
     } catch (error) {
-      console.error('Upload error:', error);
-      setError('Failed to create memory. Please try again.');
+      console.error('Error creating memory:', error);
+      toast.error('Failed to create memory');
+      setIsEnhancing(false);
     } finally {
-      setIsUploading(false);
+      setLoading(false);
     }
   };
 
@@ -165,7 +176,7 @@ function CreateMemoryPage() {
           </div>
 
           {/* AI Enhancement Toggle */}
-          <div className="mb-6 flex items-center">
+          <div className="mt-4 flex items-center">
             <input
               type="checkbox"
               id="enhance-image"
@@ -173,8 +184,11 @@ function CreateMemoryPage() {
               onChange={(e) => setEnhanceImage(e.target.checked)}
               className="h-4 w-4 text-blue-600 rounded"
             />
-            <label htmlFor="enhance-image" className="ml-2 text-gray-700">
-              Enhance image with AI based on description
+            <label htmlFor="enhance-image" className="ml-2 text-gray-700 flex items-center">
+              Enhance image with AI
+              {isEnhancing && (
+                <div className="ml-2 animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+              )}
             </label>
           </div>
 
