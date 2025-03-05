@@ -80,14 +80,14 @@ app.post('/api/enhance-image', async (req, res) => {
   }
 });
 
-async function enhanceImageWithAI(description, ipfsHash) {
+const enhanceImageWithAI = async (description, imageHash) => {
   try {
-    console.log(`Starting image enhancement for IPFS hash: ${ipfsHash}`);
+    console.log(`Starting image enhancement for IPFS hash: ${imageHash}`);
     
     // Extract just the hash if a full URL was passed
-    let hash = ipfsHash;
-    if (ipfsHash.includes('/ipfs/')) {
-      hash = ipfsHash.split('/ipfs/').pop();
+    let hash = imageHash;
+    if (imageHash.includes('/ipfs/')) {
+      hash = imageHash.split('/ipfs/').pop();
     }
     
     // Array of IPFS gateways to try if one fails
@@ -261,72 +261,45 @@ async function enhanceImageWithAI(description, ipfsHash) {
       const enhancedImagePath = path.join(tempDir, `enhanced_image_${Date.now()}.jpg`);
       await sharpImage.toFile(enhancedImagePath);
       console.log('Enhancement complete, saved to:', enhancedImagePath);
-              const uploadEnhancedImage = async (enhancedImagePath) => {
-                try {
-                  console.log('Uploading enhanced image to IPFS...');
-    
-                  // Use the already imported FormData 
-                  const form = new FormData();
-    
-                  // Read the file directly
-                  const fileContent = fs.readFileSync(enhancedImagePath);
-    
-                  // Add the file with field name 'file'
-                  form.append('file', fileContent, {
-                    filename: path.basename(enhancedImagePath),
-                    contentType: 'image/jpeg'
-                  });
-    
-                  // Make the request with proper headers from form-data
-                  const response = await axios.post('http://ipfs-service:3002/upload', form, {
-                    headers: form.getHeaders()
-                  });
-    
-                  console.log('Enhanced image uploaded successfully');
-                  return response.data;
-                } catch (error) {
-                  console.error('Error uploading to IPFS:', error.message);
-                  console.log('Failed to upload enhanced image, returning original hash');
-                  return { 
-                    success: false, 
-                    error: error.message,
-                    originalHash: true
-                  };
-                }
-              };
-              const ipfsResponse = await uploadEnhancedImage(enhancedImagePath);
-      // Step 7: Clean up temporary files
-      try {
-        fs.unlinkSync(tempImagePath);
-        fs.unlinkSync(enhancedImagePath);
-      } catch (cleanupError) {
-        console.error('Error cleaning up temp files:', cleanupError);
-      }
       
-      // Step 8: Return the new IPFS hash
-      if (ipfsResponse && ipfsResponse.success && ipfsResponse.ipfsHash) {
-        console.log(`Image enhancement complete, new IPFS hash: ${ipfsResponse.ipfsHash}`);
-        return ipfsResponse.ipfsHash;
+      // Upload the enhanced image to IPFS
+      const ipfsResult = await uploadEnhancedImage(enhancedImagePath);
+      
+      // Check if upload was successful
+      if (ipfsResult.success && ipfsResult.ipfsHash) {
+        console.log(`Enhanced image uploaded to IPFS with hash: ${ipfsResult.ipfsHash}`);
+        return {
+          success: true,
+          enhancedImageHash: ipfsResult.ipfsHash,
+          fileUrl: ipfsResult.fileUrl
+        };
       } else {
+        // Return original hash if upload failed
         console.log('Failed to upload enhanced image, returning original hash');
-        return hash;
+        return {
+          success: true,
+          enhancedImageHash: imageHash,  // Return original hash
+          message: "Enhancement created but upload failed"
+        };
       }
-      
     } catch (aiError) {
       console.error('AI processing error:', aiError);
-      // Clean up and return original hash on error
-      if (fs.existsSync(tempImagePath)) {
-        fs.unlinkSync(tempImagePath);
-      }
-      return hash;
+      return {
+        success: false,
+        error: aiError.message,
+        enhancedImageHash: imageHash  // Return original hash
+      };
     }
     
   } catch (error) {
-    console.error("Error in image enhancement:", error);
-    // Return the original hash if enhancement fails
-    return ipfsHash.includes('/ipfs/') ? ipfsHash.split('/ipfs/').pop() : ipfsHash;
+    console.error('AI processing error:', error);
+    return {
+      success: false,
+      error: error.message,
+      enhancedImageHash: imageHash  // Return original hash
+    };
   }
-}
+};
 
 // At the end of your file
 console.log('Starting server initialization');

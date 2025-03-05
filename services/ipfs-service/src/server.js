@@ -136,6 +136,84 @@ app.post('/upload-enhanced', async (req, res) => {
   }
 });
 
+// Add a dedicated endpoint for base64 uploads that bypasses multer completely
+app.post('/upload-base64', express.json({ limit: '50mb' }), async (req, res) => {
+  try {
+    console.log("Base64 upload request received");
+    
+    // Validate request
+    if (!req.body || !req.body.image) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing image data' 
+      });
+    }
+    
+    // Extract data from request
+    const { image, filename = 'enhanced_image.jpg' } = req.body;
+    
+    // Decode base64 image
+    let imageBuffer;
+    try {
+      const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
+      imageBuffer = Buffer.from(base64Data, 'base64');
+    } catch (err) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid base64 image data'
+      });
+    }
+    
+    // Save to temp file
+    const tempDir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+    const tempFile = path.join(tempDir, `${Date.now()}-${filename}`);
+    fs.writeFileSync(tempFile, imageBuffer);
+    
+    console.log(`Saved decoded image to ${tempFile}`);
+    
+    // Upload to Pinata
+    try {
+      const readableStream = fs.createReadStream(tempFile);
+      const options = {
+        pinataMetadata: {
+          name: filename
+        }
+      };
+      
+      const result = await pinata.pinFileToIPFS(readableStream, options);
+      
+      // Clean up
+      fs.unlinkSync(tempFile);
+      
+      const response = {
+        success: true,
+        ipfsHash: result.IpfsHash,
+        fileUrl: `https://gateway.pinata.cloud/ipfs/${result.IpfsHash}`,
+        originalName: filename
+      };
+      
+      console.log('Base64 upload successful:', response);
+      return res.json(response);
+    } catch (pinataError) {
+      console.error('Pinata upload error:', pinataError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to upload to IPFS',
+        details: pinataError.message
+      });
+    }
+  } catch (error) {
+    console.error('Base64 upload error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`IPFS Storage Service running on port ${PORT} bound to all interfaces`);
 });
