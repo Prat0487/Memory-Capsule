@@ -39,6 +39,14 @@ services:
     container_name: auth-service
     ports:
       - "3001:3001"
+    volumes:
+      - ./services/auth-service:/app
+      - /app/node_modules
+    environment:
+      - PORT=3001
+      - GOOGLE_CLIENT_ID=459964348020-dt5vpigjfctcchqm34o0okvh5jvc1e76.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=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
+      - GOOGLE_CALLBACK_URL=http://localhost:3001/auth/google/callback
     networks:
       - memory-capsule-network
     restart: unless-stopped
@@ -74,14 +82,15 @@ services:
     stop_grace_period: 10s
 
   blockchain-service:
-    build: ./services/blockchain-service
+    build:
+      context: ./services/blockchain-service
+      dockerfile: Dockerfile
     container_name: blockchain-service
     ports:
       - "3004:3004"
     networks:
       - memory-capsule-network
     restart: unless-stopped
-
 networks:
   memory-capsule-network:
     driver: bridge

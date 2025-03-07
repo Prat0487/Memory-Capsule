@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { supabase } from '../config/supabaseClient.js';
 import { ethers } from 'ethers';
 
@@ -102,8 +102,8 @@ export const authenticateWallet = async (address, signature, nonce) => {
   }
 };
 
-// Helper functions
-const generateToken = (user) => {
+// Helper functions - now exported for use in other services
+export const generateToken = (user) => {
   return jwt.sign(
     { id: user.id, email: user.email, wallet: user.wallet_address },
     JWT_SECRET,
