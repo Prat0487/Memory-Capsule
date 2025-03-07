@@ -4,7 +4,7 @@ import { AuthContext } from '../context/AuthContext';
 import { FcGoogle } from 'react-icons/fc'; // Import Google icon
 
 function SignupPage() {
-  const [email, setEmail] = useState('');
+  const [address, setAddress] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { signup, signupWithGoogle, error, loading } = useContext(AuthContext);
@@ -12,7 +12,7 @@ function SignupPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const success = await signup(email, password, confirmPassword);
+    const success = await signup(address, password, confirmPassword);
     if (success) {
       navigate('/connect-wallet');
     }
@@ -67,16 +67,16 @@ function SignupPage() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="email" className="sr-only">Email Address</label>
+              <label htmlFor="address" className="sr-only">Email Address</label>
               <input
-                id="email"
-                name="email"
+                id="address"
+                name="address"
                 type="email"
                 required
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
                 placeholder="Email address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
               />
             </div>
             <div>

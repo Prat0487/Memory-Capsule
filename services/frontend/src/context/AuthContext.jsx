@@ -61,24 +61,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signupWithGoogle = async () => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      // In a real implementation, you would:
-      // 1. Redirect to Google OAuth consent screen
-      // 2. Handle the callback with a code
-      // 3. Exchange code for tokens on your backend
-      
-      window.location.href = 'http://localhost:3001/auth/google';
-      return true; // This line won't actually execute due to the redirect
-    } catch (err) {
-      setError('Google authentication failed');
-      return false;
-    } finally {
-      setLoading(false);
-    }
+  const handleGoogleSignup = () => {
+    window.location.href = 'http://localhost:3001/auth/google';
   };
 
   const login = async (email, password) => {

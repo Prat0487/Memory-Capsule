@@ -9,6 +9,7 @@ import MemoriesPage from './pages/MemoriesPage'
 import MemoryDetailPage from './pages/MemoryDetailPage'
 import CreateMemoryPage from './pages/CreateMemoryPage'
 import SharedMemoryPage from './pages/SharedMemoryPage'
+import AuthCallback from './pages/AuthCallback' // Add this import
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
@@ -21,6 +22,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
+            <Route path="/auth-callback" element={<AuthCallback />} /> {/* Add this line */}
             {/* Other routes */}
           </Routes>
           <ToastContainer position="bottom-right" />
@@ -29,4 +31,5 @@ function App() {
     </AuthProvider>
   )
 }
+
 export default App
