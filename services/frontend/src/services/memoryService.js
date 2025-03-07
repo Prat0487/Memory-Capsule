@@ -34,6 +34,22 @@ createMemory = async (files, metadata) => {
   })
 }
 
+import axios from 'axios';
+
+// Set up axios interceptor to include auth token in requests
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 export const fetchMemoryById = async (id) => {
   try {
     const address = localStorage.getItem('userAddress') || '0x69592f057c1Fd4D1a82758D91acAf5D37d2639F8';

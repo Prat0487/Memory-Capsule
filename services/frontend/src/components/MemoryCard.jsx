@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 // Base64 encoded simple gray placeholder image (lightweight, no external dependencies)
 const FALLBACK_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIyNCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZmlsbD0iIzU1NSI+SW1hZ2UgTG9hZGluZzwvdGV4dD48L3N2Zz4=';
 
-export function MemoryCard({ memory, forceRefresh = 0 }) {
+function MemoryCard({ memory, forceRefresh = 0 }) {
   const [imageKey, setImageKey] = useState(forceRefresh);
   const [imageError, setImageError] = useState(false);
   
@@ -81,3 +81,5 @@ export function MemoryCard({ memory, forceRefresh = 0 }) {
     </div>
   );
 }
+
+export default MemoryCard;

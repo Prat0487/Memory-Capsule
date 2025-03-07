@@ -13,3 +13,8 @@
     flex-direction: column;
     min-height: 100vh;
   }
+
+  /* Add to your CSS */
+  .debug-outline * {
+    outline: 1px solid red;
+  }

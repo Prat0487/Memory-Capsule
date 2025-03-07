@@ -1,33 +1,32 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import HomePage from './pages/HomePage'
-import { MemoriesPage } from './pages/MemoriesPage'
-import CreateMemoryPage from './pages/CreateMemoryPage'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
+import Header from './components/Header'
+import LoginPage from './pages/LoginPage'
+import SignupPage from './pages/SignupPage'
+import MemoriesPage from './pages/MemoriesPage'
 import MemoryDetailPage from './pages/MemoryDetailPage'
-import SharedMemoryView from './pages/SharedMemoryView'
-import Navigation from './components/Navigation'
-import Footer from './components/Footer'
+import CreateMemoryPage from './pages/CreateMemoryPage'
+import SharedMemoryPage from './pages/SharedMemoryPage'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 
 function App() {
   return (
-    <Router>
-      <div className="flex flex-col min-h-screen">
-        <Navigation />
-        <main className="flex-grow pt-16 md:pt-20">
+    <AuthProvider>
+      <Router>
+        <div className="App min-h-screen bg-gray-100">
+          <Header />
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/memories" element={<MemoriesPage />} />
-            <Route path="/create" element={<CreateMemoryPage />} />
-            <Route path="/memory/:id" element={<MemoryDetailPage />} />
-            <Route path="/shared/:id" element={<SharedMemoryView />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            {/* Other routes */}
           </Routes>
-        </main>
-        <Footer />
-        <ToastContainer position="bottom-right" autoClose={3000} />
-      </div>
-    </Router>
+          <ToastContainer position="bottom-right" />
+        </div>
+      </Router>
+    </AuthProvider>
   )
 }
 export default App

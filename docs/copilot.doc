@@ -1,0 +1,656 @@
+February 2025 (version 1.98)
+
+Show release notes after an update
+
+Welcome to the February 2025 release of Visual Studio Code. There are many updates in this version that we hope you'll like, some of the key highlights include:
+
+Next Edit Suggestions (preview) - Copilot predicts the next edit you are likely to make.
+Agent mode (preview) - Copilot autonomously completes tasks.
+Copilot Edits for notebooks - Iterate quickly on edits for your notebooks.
+Code search - Let Copilot find relevant files for your chat prompt.
+Terminal IntelliSense (preview) - Rich completion support for your terminal.
+Drag & drop references - Quickly open peek references in a new editor.
+Linux custom title bar - Custom title bar support for Linux enabled by default.
+Unresolved diagnostics (preview) - Prompt when committing with unresolved diagnostics.
+Soft-delete in source control - Move untracked files to trash instead of deleting them.
+Custom instructions GA - Use custom instructions to tailor Copilot to your needs.
+If you'd like to read these release notes online, go to Updates on code.visualstudio.com. Insiders: Want to try new features as soon as possible? You can download the nightly Insiders build and try the latest updates as soon as they are available.
+
+GitHub Copilot
+Copilot features might go through different early access stages, which are typically enabled and configured through settings.
+
+Stage	Description
+Experimental	The feature is still in development and not yet ready for general use.
+View the experimental features (@tag:experimental).
+Preview	The feature is still under refinement, yet ready to use. Feedback is welcome.
+View the preview features (@tag:preview).
+Stable	The feature is ready for general use.
+Copilot Edits
+Agent mode improvements (Experimental)
+Last month, we introduced agent mode for Copilot Edits in VS Code Insiders. In agent mode, Copilot can automatically search your workspace for relevant context, edit files, check them for errors, and run terminal commands (with your permission) to complete a task end-to-end.
+
+Note: Agent mode is available today in VS Code Insiders, and we just started rolling it out gradually in VS Code Stable. Once agent mode is enabled for you, you will see a mode dropdown in the Copilot Edits view — simply select Agent.
+
+We made several improvements to the UX of tool usages this month:
+
+Terminal commands are now shown inline, so you can keep track of which commands were run.
+You can edit the suggested terminal command in the chat response before running it.
+Confirm a terminal command with the Ctrl+Enter shortcut.
+
+Agent mode autonomously searches your codebase for relevant context. Expand the message to see the results of which searches were done.
+
+Screenshot that shows the expandable list of search results in Copilot Edits.
+
+We've also made various improvements to the prompt and behavior of agent mode:
+
+The undo and redo actions in chat now undo or redo the last file edit made in a chat response. This is useful for agent mode, as you can now undo certain steps the model took without rolling back the entire chat response.
+Agent mode can now run your build tasks automatically or when instructed to do so. Disable this functionality via the   github.copilot.chat.agent.runTasks setting, in the event that you see the model running tasks when it should not.
+Learn more about Copilot Edits agent mode or read the agent mode announcement blog post.
+
+Note: If you are a Copilot Business or Enterprise user, an administrator of your organization must opt in to the use of Copilot "Editor Preview Features" for agent mode to be available.
+
+Notebook support in Copilot Edits (Preview)
+We are introducing notebook support in Copilot Edits as a preview feature in VS Code Insiders. You can now use Copilot to edit notebook files with the same intuitive experience as editing code files. Create new notebooks from scratch, modify content across multiple cells, insert and delete cells, and change cell types. This preview feature provides a seamless workflow when working with data science or documentation notebooks.
+
+Note: This feature is currently only available in VS Code Insiders with the pre-release version of GitHub Copilot Chat. We'll continue to improve the experience before bringing it to VS Code Stable in a future release.
+
+
+Refined editor integration
+We have polished the integration of Copilot Edits with code and notebook editors:
+
+No more scrolling while changes are being applied. The viewport remains in place, making it easier to focus on what changes.
+Renamed the edit review actions from "Accept" to "Keep" and "Discard" to "Undo" to better reflect what’s happening. Changes for Copilot Edits are live, they are applied and saved as they are made and users keep or undo them.
+After keeping or undoing a file, the next file is automatically revealed.
+The video demonstrates how edits are applied and saved as they occur. The live preview updates, and the user decided to "Keep" the changes. Undoing and further tweaking is also still possible.
+
+
+Refreshed UI
+In preparation for unifying Copilot Edits with Copilot Chat, we've given Copilot Edits a facelift. Files that are attached and not yet sent, are now rendered as regular chat attachments. Only files that have been modified with AI are added to the changed files list, which is located above the chat input part.
+
+With the   chat.renderRelatedFiles setting, you can enable getting suggestions for related files. Related file suggestions are rendered below the chat attachments.
+
+Screenshot that shows the updated Copilot Edits attachments and changed files user experience.
+
+Removed Copilot Edits limits
+Previously, you were limited to attach 10 files to your prompt in Copilot Edits. With this release, we removed this limit. Additionally, we've removed the client-side rate limit of 14 interactions per 10 minutes.
+
+Note that service-side usage rate limits still apply.
+
+Custom instructions generally available
+Setting:   github.copilot.chat.codeGeneration.useInstructionFiles
+
+Custom instructions enable you to tailor GitHub Copilot to provide chat responses and code suggestions to the way you and your team work. Describe your specific requirements Markdown format in a .github/copilot-instructions.md file in your workspace.
+
+This milestone, we are making custom instructions with .github/copilot-instructions.md generally available. Make sure that the   github.copilot.chat.codeGeneration.useInstructionFiles VS Code setting is enabled, and Copilot will then use these instructions when generating responses.
+
+Learn more about custom instructions in Copilot.
+
+Smoother authentication flows in chat
+If you host your source code in a GitHub repository, you're able to leverage several features, including advanced code searching, the @github chat participant, and more!
+
+However, for private GitHub repositories, VS Code needs to have permission to interact with your repositories on GitHub. For a while, this was presented with our usual VS Code authentication flow, where a modal dialog showed up when you invoked certain functionality (for example, asking @workspace or @github a question, or using the #codebase tool).
+
+To make this experience smoother, we've introduced this confirmation in chat:
+
+Screenshot that shows the authentication confirmation dialog in Chat, showing the three options to continue.
+
+Not only is it not as jarring as a modal dialog, but it also has new functionality:
+
+Grant: you're taken through the regular authentication flow like before (via the modal).
+Not Now: VS Code remembers your choice and won't bother you again until your next VS Code window session. The only exception to this is if the feature needs this additional permission to function, like @github.
+Never Ask Again: VS Code remembers your choice and persists it via the github.copilot.advanced.authPermissions setting. Any feature that needs this additional permission will fail.
+It's important to note that this confirmation does not confirm or deny Copilot (the service) access to your repositories. This is only how VS Code's Copilot experience authenticates. To configure what Copilot can access, please read the docs on content exclusion.
+
+More advanced codebase search in Copilot Chat
+Setting:   github.copilot.chat.codesearch.enabled
+
+When you add #codebase to your Copilot Chat query, Copilot helps you find relevant code in your workspace for your chat prompt. #codebase can now run tools like text search and file search to pull in additional context from your workspace.
+
+Set   github.copilot.chat.codesearch.enabled to enable this behavior. The full list of tools is:
+
+Embeddings-based semantic search
+Text search
+File search
+Git modified files
+Project structure
+Read file
+Read directory
+Workspace symbol search
+Attach problems as chat context
+To help with fixing code or other issues in your workspace, you can now attach problems from the Problems panel to your chat as context for your prompt.
+
+Either drag an item from the Problems panel onto the Chat view, type #problems in your prompt, or select the paperclip 📎 button. You can attach specific problems, all problems in a file, or all files in your codebase.
+
+Attach folders as context
+Previously, you could attach folders as context by using drag and drop from the Explorer view. Now, you can also attach a folder by selecting the paperclip 📎 icon or by typing #folder: followed by the folder name in your chat prompt.
+
+Collapsed mode for Next Edit Suggestions (Preview)
+Settings:
+
+  github.copilot.nextEditSuggestions.enabled
+  editor.inlineSuggest.edits.showCollapsed
+We've added a collapsed mode for NES. When you enable this mode, only the NES suggestion indicator is shown in the left editor margin. The code suggestion itself is revealed only when you navigate to it by pressing Tab. Consecutive suggestions are shown immediately until a suggestion is not accepted.
+
+
+The collapsed mode is disabled by default and can be enabled by configuring   editor.inlineSuggest.edits.showCollapsed , or you can enable or disable it in the NES gutter indicator menu.
+
+Screenshot that shows the Next Edit Suggestions context menu in the editor left margin, highlighting the Show Collapsed option.
+
+Change completions model
+You could already change the language model for Copilot Chat and Copilot Edits, and now you can also change the model for inline suggestions.
+
+Alternatively, you can change the model that is used for code completions via Change Completions Model command in the Command Palette or the Configure Code Completions item in the Copilot menu in the title bar.
+
+Note: the list of available models might vary and change over time. If you are a Copilot Business or Enterprise user, your Administrator needs to enable certain models for your organization by opting in to Editor Preview Features in the Copilot policy settings on GitHub.com.
+
+Model availability
+This release, we added more models to choose from when using Copilot. The following models are now available in the model picker in Visual Studio Code and github.com chat:
+
+GPT 4.5 (Preview): OpenAI’s latest model, GPT-4.5, is now available in GitHub Copilot Chat to Copilot Enterprise users. GPT-4.5 is a large language model designed with advanced capabilities in intuition, writing style, and broad knowledge. Learn more about the GPT-4.5 model availability in the GitHub blog post.
+
+Claude 3.7 Sonnet (Preview): Claude 3.7 Sonnet is now available to all customers on paid Copilot plans. This new Sonnet model supports both thinking and non-thinking modes in Copilot. In initial testing, we’ve seen particularly strong improvements in agentic scenarios. Learn more about the Claude 3.7 Sonnet model availability in the GitHub blog post.
+
+Copilot Vision (Preview)
+We're quickly rolling out end-to-end vision support in this version of Copilot Chat. This lets you attach images and interact with images in chat prompts. For example, if you encounter an error while debugging, attach a screenshot of VS Code, and ask Copilot to help you resolve the issue. You might also use it to attach some UI mockup and let Copilot provide some HTML and CSS to implement the mockup.
+
+Animation that shows an attached image in a Copilot Chat prompt. Hovering over the image shows a preview of it.
+
+You can attach images in multiple ways:
+
+Drag and drop images from your OS or from the Explorer view
+Paste an image from your clipboard
+Attach a screenshot of the VS Code window (select the paperclip 📎 button > Screenshot Window)
+A warning is shown if the selected model currently does not have the capability to handle the file type. The only supported model at the moment will be GPT 4o, but support for image attachments with Claude 3.5 Sonnet and Gemini 2.0 Flash will be rolling out soon as well. Currently, the supported image types are JPEG/JPG, PNG, GIF, and WEBP.
+
+Copilot status overview (Experimental)
+Setting:   chat.experimental.statusIndicator.enabled
+
+We are experimenting with a new centralized Copilot status overview that provides a quick overview of your Copilot status and key editor settings:
+
+Quota information if you are a Copilot Free user
+Editor related settings such as Code Completions
+Useful keyboard shortcuts to use other Copilot features
+This Copilot status overview is accessible via the Copilot icon in the Status Bar.
+
+Screenshot that shows the Copilot status overview in the Status Bar.
+
+Enable the Copilot status overview with the   chat.experimental.statusIndicator.enabled setting.
+
+TypeScript context for inline completions (Experimental)
+Setting: chat.languageContext.typescript.enabled
+
+We are experimenting with enhanced context for inline completions and /fix commands for TypeScript files. The experiment is currently scoped to Insider releases and can be enabled with the chat.languageContext.typescript.enabled setting.
+
+Custom instructions for pull request title and description
+You can provide custom instructions for generating pull request title and description with the setting   github.copilot.chat.pullRequestDescriptionGeneration.instructions . You can point the setting to a file in your workspace, or you can provide instructions inline in your settings. Get more details about using customizing Copilot in VS Code.
+
+The following sample shows how to provide a custom instruction inline in settings.
+
+{
+  "github.copilot.chat.pullRequestDescriptionGeneration.instructions": [
+    {
+      "text": "Prefix every PR title with an emoji."
+    }
+  ]
+}
+
+Generating a title and description requires the GitHub Pull Requests extension to be installed.
+
+Accessibility
+Copilot Edits accessibility
+We made Copilot Edits much more accessible.
+
+There are now audio signals for files with modifications and for changed regions (insertions, modifications, and deletions).
+The accessible diff viewer is now available for modified files. Just like in diff editors, select F7 to enable it.
+activeEditorState window title variable
+We have a new   window.title variable, activeEditorState, to indicate editor information such as modified state, the number of problems, and when a file has pending Copilot Edits to screen reader users. When in Screen Reader Optimized mode, this is appended by default and can be disabled with   accessibility.windowTitleOptimized .
+
+Workbench
+Custom title bar on Linux
+The custom title bar is now enabled by default on Linux. The custom title bar gives you access to layout controls, the Copilot menu, and more.
+
+Screenshot that shows the custom VS Code title bar on Linux.
+
+You can always revert back to the native title decorations, either from the custom title context menu or by configuring   window.titleBarStyle to native.
+
+Screenshot that shows the content menu option to disable the custom title bar on Linux.
+
+We are happy for continued feedback on this experience and are already working on improving this for future milestones based on existing feedback.
+
+Use labels for Secondary Side Bar views
+We decided to change the appearance of views in the Secondary Side Bar to show labels instead of icons, similar to what we have in the Panel area. This makes it easier to distinguish between different views, for example the Copilot Edits and Copilot Chat views. You can switch back to showing icons at any time by configuring   workbench.secondarySideBar.showLabels .
+
+Screenshot that shows Secondary Side Bar with labels instead of icons.
+
+New Settings editor key-matching algorithm (Preview)
+Setting:   workbench.settings.useWeightedKeySearch
+
+We have added a new Settings editor search algorithm that prioritizes more relevant key matches. The search algorithm attempts to match the setting ID and labels in more ways than before, but it also filters down the results more so that only the best match types are shown.
+
+You can try out the preview feature by enabling the   workbench.settings.useWeightedKeySearch setting.
+
+
+Theme: Light Pink (preview on vscode.dev)
+
+Option to hide dot files in simple file picker
+When using the simple file picker (either when connected to a remote or when using   files.simpleDialog.enable , you can now hide dot files by using the Show/Hide dot files button.
+
+Screenshot that shows the simple file picker, highlighting the button to show or hide dot files.
+
+Editor
+Peek references drag and drop support
+The peek view now supports drag & drop. Invoke Peek References, Peek Implementation, or any of the other peek commands, and drag entries from its tree to open them as separate editors.
+
+ Theme: GitHub Light Colorblind (Beta) (preview on vscode.dev)
+
+Occurrences highlight delay
+The delay for occurrence highlighting within the editor is now set to 0 by default. This results in an overall more responsive editor feel. You can still control the delay with the   editor.occurrencesHighlightDelay setting.
+
+Source Control
+Updated view titles
+When we added the Source Control Graph view to the Source Control view, it emphasized the duplication of section titles in the Source Control view: "Source Control Repositories", "Source Control", and "Source Control Graph". This milestone we have revisited the titles of the views, so that they are shorter and no longer duplicate the view title: "Repositories", "Changes", and "Graph".
+
+Discard untracked changes improvements
+Setting:   git.discardUntrackedChangesToTrash
+
+Over the years we have received multiple reports about data loss because discarding an untracked file would permanently delete the file, even though VS Code shows a modal dialog making it clear that the file will be deleted permanently.
+
+Starting this milestone, discarding an untracked file will move the file to the Recycle Bin/Trash when possible, so that the file can be easily recovered. You can disable this functionality using the   git.discardUntrackedChangesToTrash setting.
+
+Screenshot of the modal dialog shown when discarding an untracked file.
+
+Diagnostics commit hook (Experimental)
+Settings:
+
+  git.diagnosticsCommitHook.Enabled
+  git.diagnosticsCommitHook.Sources
+This milestone, we introduced a new commit hook that prompts you if there are any unresolved diagnostics for the changed files. This is currently an experimental feature that can be enabled using the   git.diagnosticsCommitHook.Enabled setting.
+
+By default, the commit hook prompts for any error level diagnostics, but the diagnostics sources and levels can be customized using the   git.diagnosticsCommitHook.Sources setting. Give it a try and let us know your feedback.
+
+Screenshot of the modal dialog shown when there are unresolved diagnostics for the changed files.
+
+Notebooks
+Inline notebook diff view (Experimental)
+Setting:   notebook.diff.experimental.toggleInline
+
+You can now enable an inline diff view for notebooks. This feature enables you to view changes within notebook cells in a single inline view, rather than the traditional side-by-side comparison.
+
+Enable this feature by setting   notebook.diff.experimental.toggleInline to true. You can then toggle the diff view to inline using the editor menu in the top right corner.
+
+
+Notebook inline values hover
+Notebook inline values now have their decoration truncated to fit the width of the viewport and have a rich hover to show the full value, maintaining whitespace formatting. This maintains the shape of variables like dataframes, making values easier to read at a glance.
+
+Screenshot that shows the cursor hovering above a dataframe object's inline decoration. A rich value hover is shown.
+
+Terminal IntelliSense (Preview)
+Setting:   terminal.integrated.suggest.enabled
+
+We've significantly improved terminal shell completions across bash, zsh, fish, and PowerShell by adding completion specs (git for example), refining command-line parsing for better suggestions, and enhancing file and folder completions. Enable this feature with   terminal.integrated.suggest.enabled .
+
+Enhanced Fig completion support
+We leverage Fig completion specs to power intelligent completions for specific CLIs. We only had a small number of these before, but this iteration we added the following CLIs to the list we ship with VS Code:
+
+Basic tools: cat, chmod, chown, cp, curl, df, du, echo, find, grep, head, less, ls, mkdir, more, mv, pwd, rm, rmdir, tail, top, touch, uname
+Process tools: kill, killall, ps
+Package managers: apt, brew
+Node.js ecosystem: node, npm, npx, nvm, pnpm, yarn
+SCM, languages, editors: git, nano, python, python3, vim
+Network: scp, ssh, wget
+In addition to the new specs, we now also support generators, which dynamically generate completions by running commands when they're requested. One example of this in action is presenting all branches for git checkout:
+
+Screenshot that shows completions for "git checkout tyriar/xterm", showing several results, including fuzzy results that don't match the query exactly. Theme: Sapphire (preview on vscode.dev)
+
+Behind the scenes, this runs git --no-optional-locks branch -a --no-color --sort=-committerdate to get the list of branches before processing them into completions. A similar approach is used to also fetch tags.
+
+Configurable quick suggestions
+Setting:   terminal.integrated.suggest.quickSuggestions
+
+Similar to the editor, quick suggestions are what automatically shows IntelliSense when typing anything, as opposed to trigger characters, which show when certain characters like \ or - are used. The new   terminal.integrated.suggest.quickSuggestions setting allows precise control over when quick suggestions should be presented.
+
+The default value enables quick suggestions for commands and arguments, and now disabled by default falling back to paths which we heard could get noisy and frustrating as they often weren't applicable. This is the default:
+
+"terminal.integrated.suggest.quickSuggestions": {
+  "commands": "on",
+  "arguments": "on",
+  "unknown": "off"
+}
+
+Inline suggestion detection
+Setting:   terminal.integrated.suggest.inlineSuggestion
+
+One problem inline suggestion detection has had to date, has been confusion introduced by competing with suggestions from different sources. Specifically, the inline suggestion that often appears when typing in shells:
+
+Screenshot that shows fish shell showing suggestions, such as previous git commit commands when typing a prefix.
+
+These suggestions are actually shell-level features (auto suggestions in fish/zsh, predictions in pwsh, etc.), which might not be obvious to the user, especially when presented alongside IntelliSense.
+
+The IntelliSense feature requires that we detect this inline suggestion, which previously used a naive implementation that only checked whether the text was styled with faint or italics SGR attributes. It turns out that this was insufficient, not only when the user customized the styles, but also fish shell did not use either of these styles by default. We now detect the majority of cases by analyzing the command line context and cursor position.
+
+Building upon this new and improved detection, the inline suggestion is now presented as the top option with a star icon to both align closer with how the editor behaves and to make it more clear what kstyle(Tab) will do in this case.
+
+Screenshot that shows when an inline suggestion shows up, it will be detected and put beside a star icon at the top of IntelliSense.
+
+The default is to always show this suggestion as the top suggestions, but can be configured with   terminal.integrated.suggest.inlineSuggestion .
+
+Detailed command completions
+Completions for bash and zsh built-in commands and PowerShell commands are now more detailed, providing details on available arguments. This information is sourced from the shell's documentation or help commands.
+
+For bash, help <command> is used to get a basic description:
+
+Screenshot that shows the history completion in bash, showing usage information and description.
+
+For zsh, man zshbuiltins is used to get a detailed description:
+
+Screenshot that shows completions in zsh, displaying detailed information from the manpage.
+
+For PowerShell, more properties of Get-Command are shown in the completion:
+
+Screenshot that shows the completion for Get-ChildItem, showing the module Microsoft.PowerShell.Management and its version.
+
+Screenshot that shows the completion for ConvertTo-Json, showing the signature of the command.
+
+Improved sorting
+Command completions now feature improved sorting, specifically:
+
+Completions with more details generally appear above less detailed completions
+Builtin commands take precedence over paths from $PATH
+Screenshot that shows the more useful alias and autoload commands showing before others in zsh.
+
+For paths, the following improvements were made:
+
+Paths starting with _ get a penalty as this is often an indicator that they are special and generally shouldn't be changed much (for example, __init__.py).
+Punctuation is ignored when sorting, so files starting with . will be mixed in with others.
+Screenshot that shows __init__.py will show below other files, while a .build dir will show immediately above a build file.
+
+CDPATH support
+Setting:   terminal.integrated.suggest.cdPath
+
+The $CDPATH environment variable is a common shell feature that contains a colon-separated list of paths, similar to $PATH, and allows navigating to them as if they were relative regardless of the current working directory. Fish actually shows CDPATH entries in cd tab completion:
+
+Screenshot that shows tab completion in fish, displaying entries from CDPATH.
+
+We now support showing $CDPATH entries as completions when using cd:
+
+Screenshot that shows CDPATH entries now show up in IntelliSense.
+
+This feature also works on Windows (; separators) and doesn't need the shell to natively support the feature, since the default is using the absolute path.
+
+Screenshot that shows a CDPATH containing 2 paths separated by a semi-colon, including all sub-directories even on PowerShell which does not support CDPATH natively.
+
+Configure this with   terminal.integrated.suggest.cdPath .
+
+Absolute paths
+Absolute paths are now supported.
+
+Screenshot that shows "cd c:\Github\mi" will show results for all absolute folders matching that term.
+
+Screenshot that shows cd to absolute paths also works with Unix-style paths.
+
+Alias support
+Command aliases are now also detected for bash, zsh and fish and feature a new distinct icon:
+
+Screenshot that shows the alias c->code-insiders will now be detected and show with the command icon with a little arrow in the corner.
+
+Differentiated options and flags
+CLI options (that have a value) and flags (that don't) are now differentiated in the UI via a different icon:
+
+Screenshot that shows flags like --help will show a flag icon, options like --diff will show a different icon.
+
+Tasks
+Task rerun action
+We have a new rerun task action for terminals, Ctrl+Shift+R. The action appears on the terminal tab's inline toolbar and in the terminal's context menu.
+
+
+Debug
+Debug inline values hover
+If the setting   debug.inlineValues is enabled, the inline value decorations now have an inline hover, making it easier to read longer values at a glance.
+
+Screenshot that shows the cursor hovering above a dataframe object's inline decoration in an active debugging session. Rich value hover is shown.
+
+Languages
+TypeScript 5.8
+VS Code now includes TypeScript 5.8.2. This major update brings new language improvements, including improved checking of types from conditional expressions and support for write code that confirms to Node's new --experimental-strip-types option. It also included a number of tooling improvements and bug fixes.
+
+Check out the TypeScript 5.8 release blog for more details on this update.
+
+Remote Development
+The Remote Development extensions, allow you to use a Dev Container, remote machine via SSH or Remote Tunnels, or the Windows Subsystem for Linux (WSL) as a full-featured development environment.
+
+Highlights include:
+
+EOL for Linux legacy server
+Expanded proxy configurability
+You can learn more about these features in the Remote Development release notes.
+
+Enterprise support
+Multi-line support for allowed extensions
+You can now configure allowed extensions in the group policy on Windows using a multi-line string. This allows for more flexible and extensive configuration of allowed extensions. Learn more about configuring allowed extensions.
+
+Contributions to extensions
+Python
+Automatic quotation insertion when breaking long strings
+Pylance now supports automatic insertion of quotation marks to enable a seamless experience when breaking long strings.
+
+Pylance memory consumption improvements
+Some optimizations were made to improve Pylance's memory consumption, particularly when working with large workspaces. This enhancement was made to Pyright, the static type checker that powers Pylance's language server features.
+
+Improvements to Python shell integration
+After modifying   python.terminal.shellIntegration.enabled , you will no longer have to reload in order for changes to take effect. Simply create a new terminal to see desired changes on your Python REPL in terminal.
+
+Correct workspace prompt for Windows Git Bash
+Python users on Windows using Git Bash will now see correct working directory in their terminal prompt. These changes apply to those opted into the pythonTerminalEnvVarActivation experiment.
+
+New setting for auto test discovery file pattern
+You can now refine which files auto test discovery occurs by specifying a glob pattern in the   python.testing.autoTestDiscoverOnSavePattern setting. Its default value is set to **/*.py.
+
+Read test debug config from settings.json as fallback
+We now look for test debug configurations in both settings.json and launch.json files, expanding where you can define these configurations.
+
+GitHub authentication
+Improved proxy support with Electron fetch adoption
+The GitHub Authentication extension now leverages Electron's version of fetch in order to make web requests. This has helped users with certain proxy & firewall settings. If you know you run in an environment that has a proxy setup and you are unable to authenticate to GitHub inside of VS Code, don't hesitate to create an issue!
+
+Extension authoring
+Authentication
+Important: We are renaming AuthenticationForceNewSessionOptions to AuthenticationGetSessionPresentationOptions and leaving a deprecated AuthenticationForceNewSessionOptions for now. There is no functional difference, so this is not a breaking change in the runtime, but you should update your code to use AuthenticationGetSessionPresentationOptions instead of AuthenticationForceNewSessionOptions since it will be removed in the future.
+
+Looking at these two authentication calls:
+
+vscode.authentication.getSession(provider, scopes, { createIfNone: options });
+vscode.authentication.getSession(provider, scopes, { forceNewSession: options });
+
+createIfNone and forceNewSession will now take in either a boolean or a AuthenticationGetSessionPresentationOptions:
+
+/**
+ * Optional options to be used when calling {@link authentication.getSession} with interactive options `forceNewSession` & `createIfNone`.
+ */
+export interface AuthenticationGetSessionPresentationOptions {
+    /**
+     * An optional message that will be displayed to the user when we ask to re-authenticate. Providing additional context
+     * as to why you are asking a user to re-authenticate can help increase the odds that they will accept.
+     */
+    detail?: string;
+}
+
+full typings can be found here...
+
+This is a new addition for createIfNone, but it's a modification for forceNewSession, which used to take in a AuthenticationForceNewSessionOptions that had the same signature as the new AuthenticationGetSessionPresentationOptions.
+
+If you are explicitly using AuthenticationForceNewSessionOptions, you will see it is marked as deprecated and you should replace it with AuthenticationGetSessionPresentationOptions, as AuthenticationForceNewSessionOptions will be removed in a future version.
+
+It's important to note that the only thing that is changing here are the types. There is no runtime change, so this is not a breaking change from that perspective.
+
+Additionally, the authLearnMore proposed API has been updated from AuthenticationForceNewSessionOptions to AuthenticationGetSessionPresentationOptions.
+
+Here's an example that leverages detail and the learnMore proposal:
+
+Screenshot that shows the authentication modal dialog, featuring a message that says 'To get more relevant Copilot Chat results, we need permission to read the contents of your repository on GitHub.' and a button to learn more.
+
+Refined Snippet API
+You can now control the whitespace normalization when inserting snippets. This applies to the insertSnippet-API and to the SnippetTextEdit-API and control is the indentation of additional lines of snippets are adjusted or not
+
+const snippet = `This is an indented
+    snippet`;
+
+// keepWhitespace: false, undefined
+function indentedFunctionWithSnippet() {
+    return `This is an indented
+        snippet`; // adjusted indentation
+}
+
+// keepWhitespace: true
+function indentedFunctionWithSnippet() {
+    return `This is an indented
+    snippet`; // original indentation
+}
+
+Proposed APIs
+Text Encodings
+We added new proposed API to work with text encodings in VS Code.
+
+Specifically, this new API allows to:
+
+Get the current encoding of a TextDocument
+Open a TextDocument with a specific encoding
+Encode a string to a Uint8Array with a specific encoding
+Decode a Uint8Array to a string using a specific encoding
+Try it out and let us know what you think in this GitHub issue.
+
+Shell environment
+Extensions are able to access the user's currently active shell environment information for pwsh, zsh, bash, and fish shell that are opened from the VS Code integrated terminal. This is only available when   terminal.integrated.shellIntegration.enabled is enabled.
+
+The user can decide whether or not to report their shell environment information with   terminal.integrated.shellIntegration.environmentReporting .
+
+Give it a try and let us know what you think in this GitHub issue.
+
+Engineering
+Electron 34 update
+In this milestone, we are promoting the Electron 34 update to users on our stable release. This update comes with Chromium 132.0.6834.196 and Node.js 20.18.2. We want to thank everyone who self-hosted on Insiders builds and provided early feedback.
+
+macOS 10.15 support has ended
+VS Code 1.97 is the last release that supports macOS 10.15 (macOS Catalina). Refer to our FAQ for additional information.
+
+Dev-time tracking of leaked disposables
+VS Code uses the disposable pattern for explicit resource management, for example to close files, clean up DOM elements, or remove event listeners. Not disposing of resources means memory is wasted and memory usage accumulates over time.
+
+We are constantly on the hunt for such leaks and have added another tool for detecting this. We utilize the FinalizationRegistry API as it informs us when an object has been garbage collected. If such an object represented a disposable, which has not been disposed of, this means we have a leak. These are collected and shown to the developers of VS Code, so that we can clean things up as we go.
+
+Notable fixes
+Thank you
+Last but certainly not least, a big Thank You to the contributors of VS Code.
+
+Issue tracking
+Contributions to our issue tracking:
+
+@gjsjohnmurray (John Murray)
+@albertosantini (Alberto Santini)
+@IllusionMH (Andrii Dieiev)
+@RedCMD (RedCMD)
+Pull requests
+Contributions to vscode:
+
+@a-stewart (Anthony Stewart): Diff selection indicator line should use menu.separatorBackground instead of menu.border PR #228825
+@bchu1 (Bryan Chu): Fix to header misplacement in minimap PR #217581
+@cassidoo (Cassidy Williams): Fix #241903: Add override for GitHub in settingsLayout.ts PR #241911
+@cdce8p (Marc Mueller): Add panelTitleBadge color variables PR #240645
+@cenviity (Vincent Ging Ho Yim): Fix typos in editorOptions.ts PR #239929
+@cmbrose (Caleb Brose): Update chat's newEditSession command to take an input prompt PR #241796
+@devm33 (Devraj Mehta): fix: add electron as an external for webpack PR #239134
+@dmotte (Motte): Fix behavior of terminal.integrated.confirmOnExit PR #240074
+@dvangonen (Daniil Vangonen): Remove unnecessary classes from body PR #240633
+@gabritto (Gabriela Araujo Britto): Revert "[typescript-language-features] Expandable hover (#228255)" PR #240011
+@gjsjohnmurray (John Murray)
+Supply multiselects to scm/resourceGroup/context menu commands (fix #92337) PR #192172
+Add scmResourceGroupState context key (#192009) PR #194804
+SCM - Briefer titles on SCM views PR #230693
+Fix `Show User Keybindings' option on Keyboard Shortcuts editor (fix #240068) PR #240085
+Bad 'OK' capitalization on 'Add Triggered Breakpoint...' (fix #240490) PR #240492
+@hickford (M Hickford): Log provider in "tunnel user show" PR #240692
+@ihavecoke (ihavecoke): Clamp tab_size setting between 1 and 16 PR #228957
+@jakebailey (Jake Bailey): Preserve --disable-extensions in extension host development PR #240415
+@jamestut (James Nugraha): Compute TextModel limits before initializing the tokenizer PR #240919
+@jeanp413 (Jean Pierre)
+Fix terminal split view disposable leaked PR #241597
+Fix broken terminal link hover, hides before being able to hover over the contents PR #241599
+Fix timeline view leaks event listeners PR #241607
+@KexyBiscuit (Kexy Biscuit a.k.a. るる): Allow detection of powershell-preview snap PR #240054
+@klaussner (Christian Klaussner): Fix traffic light centering on macOS PR #212471
+@naman108 (Natha Paquette): Typo in storage URI docs PR #241600
+@nknguyenhc (Nguyen): Extension detail content escapes container PR #240134
+@notoriousmango (Seong Min Park)
+Make Command Center debug launcher offer most recently used configuration first PR #240744
+Adopt Markdown to use vscode log output channel PR #241342
+@pouyakary (Pouya Kary ✨): Feat: Custom Minimap Section Header Marker Detection RegExp ✨ PR #210271
+@rgrunber (Roland Grunberg): Expose adjustWhitespace to TextEditor API. PR #234858
+@silamon (Simon Lamon): Diff editor: Correct 1 files to 1 file PR #240092
+@simon-id (simon-id): fix: workbench search use correct findMatch colors (fix #237909) PR #237910
+@SimonSiefke (Simon Siefke): fix: memory leak in settings indicators PR #236417
+@ssigwart (Stephen Sigwart): Fix unexpected tab completion when attempting to indent PR #136572
+@SunsetTechuila (Grigory): feat(commands): add insertFinalNewLine PR #241126
+@tcvdh (Thijs van den Heuvel): Fix: Wait for clear command to execute before reusing terminal PR #240970
+@terrymun (Terry Mun-Andersen): fix: remove extraneous backtick in CONTRIBUTING.md PR #240305
+@tmm1 (Aman Karmani): tsb: fix for deleted and re-added source file not being re-generated PR #238409
+@xymopen (xymopen_Official)
+Add node as npm script runner PR #236967
+Add node as npm script runner (2nd) PR #240527
+@zardoy (Vitaly): [Git] Migrate to git autostash when pulling for better performance PR #187850
+Contributions to vscode-css-languageservice:
+
+@GauravB159 (Gaurav Bhagchandani): lab() and lch() color previews added PR #306
+Contributions to vscode-eslint:
+
+@edemaine (Erik Demaine): Probing support for Civet PR #1965
+@mustevenplay (mustevenplay): Add Typescript configuration files detection PR #1968
+Contributions to vscode-hexeditor:
+
+@tomilho (Tomás Silva): Moved Hex Compare Selected below Compare Selected PR #561
+Contributions to vscode-jupyter:
+
+@thesuperzapper (Mathew Wicks): Fix reading JUPYTER_RUNTIME_DIR and XDG_RUNTIME_DIR PR #16451
+Contributions to vscode-languageserver-node:
+
+@MariaSolOs (Maria José Solano)
+Add capability information to the metamodel PR #1591
+Fix text document didOpen/didClose server capabilities PR #1615
+Fix capabilities for range formatting requests PR #1617
+@mciccale (Marco Ciccalè Baztán): minor typo semaphore.ts PR #1618
+@yf-yang: fix: avoid dispose unmatched handlers PR #1614
+Contributions to vscode-mypy:
+
+@DetachHead
+use correct capitalization of file paths to work around mypy issue PR #342
+update capitalization of cwd to match file path PR #344
+@hamirmahal (Hamir Mahal): fix: usage of node12 which is deprecated in CI PR #336
+@ivirabyan (Ivan Virabyan): Add dmypy status file setting PR #347
+Contributions to vscode-pull-request-github:
+
+@christianvuerings (Christian Vuerings): Fix Copy GitHub Permalink with custom SSH PR #6669
+Contributions to vscode-python-debugger:
+
+@TCPsoftware (tcpsoft): Make "args": "${command:pickArgs}" as default debug configuration PR #548
+Contributions to vscode-vsce:
+
+@mohankumarelec (mohanram): Updated the semver comparison PR #1078
+@stevedlawrence (Steve Lawrence): Allow for reproducible .vsix packages PR #1100
+Contributions to debug-adapter-protocol:
+
+@angelozerr (Angelo): Add IntelliJ / LSP4IJ DAP support PR #529
+@samisalreadytaken: Add Squirrel Debugger to adapters.md PR #530
+@SpartanJ (Martín Lucas Golini): Update tools.md adding a new DAP client: ecode PR #526
+@sssooonnnggg (Song): chore: add luau debugger PR #516
+@theIDinside (Simon Farre): Add Midas to Debug Adapter list, w/ VSCode PR #528
+Contributions to language-server-protocol:
+
+@ind1go (Ben Cox): Typo in workspace diagnostics PR #2086
+@MariaSolOs (Maria José Solano)
+Add capability information to metamodel PR #2096
+Update metamodel PR #2104
+@MuntasirSZN (Muntasir Mahmud): feat: copilot language server in server list PR #2107
+@Szasza (Szasza Palmer): adding Wing language server to server list PR #2101
+@the-mikedavis (Michael Davis): Clarify that $0 should not use any other snippet syntax PR #2087
+@yassun7010 (yassun7010): add Tombi to LSP list. PR #2089
+Contributions to python-environment-tools:
+
+@pantheraleo-7: Add support for detecting $VIRTUAL_ENV PR #181

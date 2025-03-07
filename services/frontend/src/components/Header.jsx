@@ -1,40 +1,38 @@
-import React, { useState } from 'react'
-import { ethers } from 'ethers'
+import React from 'react'
+import { Link } from 'react-router-dom'
 
 function Header() {
-  const [account, setAccount] = useState(null)
-
-  async function connectWallet() {
-    if (window.ethereum) {
-      try {
-        const provider = new ethers.providers.Web3Provider(window.ethereum)
-        await provider.send('eth_requestAccounts', [])
-        const signer = provider.getSigner()
-        const address = await signer.getAddress()
-        setAccount(address)
-      } catch (error) {
-        console.error('Failed to connect wallet:', error)
-      }
-    } else {
-      alert('MetaMask not detected. Please install a Web3 wallet.')
-    }
-  }
-
   return (
-    <header className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 shadow-md">
-      <h1 className="text-2xl font-bold text-white tracking-wider">Memory Capsule</h1>
-      {account ? (
-        <span className="text-white font-medium">
-          Connected: {account.slice(0, 6)}...{account.slice(-4)}
-        </span>
-      ) : (
-        <button
-          onClick={connectWallet}
-          className="bg-white text-indigo-500 font-semibold px-4 py-2 rounded-md shadow hover:bg-gray-100 transition-colors duration-200"
-        >
-          Connect Wallet
-        </button>
-      )}
+    <header className="bg-white shadow-md">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex justify-between items-center">
+          <Link to="/" className="text-xl font-bold text-blue-600">
+            Memory Capsule
+          </Link>
+                      <div className="flex items-center space-x-4">
+                        <Link to="/" className="font-medium">Home</Link>
+                        <Link to="/memories" className="font-medium">My Memories</Link>
+                        <Link to="/create" className="font-medium">Create</Link>
+            
+                        {localStorage.getItem('userAddress') ? (
+                          // User is logged in - show address
+                          <div className="text-sm bg-gray-100 px-3 py-1 rounded-full">
+                            {localStorage.getItem('userAddress').substring(0, 6)}...
+                            {localStorage.getItem('userAddress').substring(localStorage.getItem('userAddress').length - 4)}
+                          </div>
+                        ) : (
+                          // User is not logged in - show auth buttons
+                          <div className="flex space-x-2">
+                            <Link to="/login" className="px-4 py-1 border border-gray-300 rounded-lg hover:bg-gray-50">
+                              Log In
+                            </Link>
+                            <Link to="/signup" className="px-4 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                              Sign Up
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    </div>      </div>
     </header>
   )
 }
