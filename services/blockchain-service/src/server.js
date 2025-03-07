@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import trackingRoutes from './routes/tracking.js';
 import blockchainRoutes from './routes/blockchain.js';
 import { supabase } from './config/supabaseClient.js';
 
@@ -34,6 +35,7 @@ app.get('/api/blockchain/health', async (req, res) => {
 
 // Routes
 app.use(blockchainRoutes);
+app.use('/api/blockchain', trackingRoutes);
 
 // Start server
 app.listen(PORT, () => {

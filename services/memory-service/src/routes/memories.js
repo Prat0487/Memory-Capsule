@@ -44,7 +44,7 @@ const updateMemoryImage = async (req, res) => {
     
     // Update the memory in the database
     const result = await db.query(
-      'UPDATE memories SET ipfs_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      'UPDATE memories SET ipfsHash = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
       [ipfsHash, memoryId]
     );
     
@@ -109,7 +109,7 @@ const updateMemoryImage = async (req, res) => {
     
       // Create the memory with narrative and possibly enhanced image
       const newMemory = await db.query(
-        'INSERT INTO memories (title, description, ipfs_hash, narrative, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+        'INSERT INTO memories (title, description, ipfsHash, narrative, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING *',
         [title, description, finalIpfsHash, narrative, metadata]
       );
     

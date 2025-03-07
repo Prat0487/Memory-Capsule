@@ -3,7 +3,8 @@ import { trackMemoryShare } from '../index.js';
 
 const router = express.Router();
 
-// Endpoint to track memory shares
+// Endpoint to track memory shares - temporarily disabled due to 404 errors
+
 router.post('/api/blockchain/track-share', async (req, res) => {
   try {
     const { memoryId } = req.body;
@@ -36,5 +37,10 @@ router.post('/api/blockchain/track-share', async (req, res) => {
     });
   }
 });
+
+
+// If you want to enable this later, change the route to:
+// router.post('/track-share', async (req, res) => { ... });
+// And make sure the router is mounted at '/api/blockchain' in your main server file
 
 export default router;
