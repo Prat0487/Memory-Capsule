@@ -45,20 +45,19 @@ export const AuthProviderImplementation = ({ children }) => {
 
   // Auth methods (signup, login, wallet connection, etc.)
   // Implementation as provided earlier
-  
-  const contextValue = {
-    currentUser,
-    isAuthenticated,
-    loading,
-    error,
-    providerReady,
-    signup,
-    signupWithGoogle,
-    login,
-    logout,
-    connectWallet,
-    setError,
-  };
+      const contextValue = {
+        currentUser,
+        isAuthenticated,
+        loading,
+        error,
+        providerReady,
+        signup,
+        signupWithGoogle,
+        login,
+        logout,
+        connectWallet,
+        setError,
+      };
 
   return (
     <AuthContextImplementation.Provider value={contextValue}>

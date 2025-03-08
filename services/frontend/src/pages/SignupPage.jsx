@@ -1,25 +1,30 @@
-import React, { useState, useContext } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { FcGoogle } from 'react-icons/fc'; // Import Google icon
 
 function SignupPage() {
-  const [address, setAddress] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const { signup, signupWithGoogle, error, loading } = useContext(AuthContext);
+  const auth = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  // Debug what's in the context
+  useEffect(() => {
+    console.log("Auth context contains:", Object.keys(auth));
+  }, [auth]);
+
+  // Use a safe approach to access signup
+  const handleSignup = (e) => {
     e.preventDefault();
-    const success = await signup(address, password, confirmPassword);
-    if (success) {
-      navigate('/connect-wallet');
+    // Use conditional to avoid the error
+    if (auth && typeof auth.signup === 'function') {
+      auth.signup(email, password, confirmPassword);
+    } else {
+      console.error("Signup function is not available in auth context", auth);
     }
   };
 
   const handleGoogleSignup = async () => {
-    const success = await signupWithGoogle();
+    const success = await auth.signupWithGoogle();
     if (success) {
       navigate('/connect-wallet');
     }
