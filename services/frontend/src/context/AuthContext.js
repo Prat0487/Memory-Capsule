@@ -6,40 +6,51 @@ export const AuthContext = createContext();
 // Create the auth provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [authToken, setAuthToken] = useState(localStorage.getItem('authToken'));
+  const [authToken, setAuthToken] = useState(localStorage.getItem('authToken') || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Check if user is logged in on initial load
+  // Example: check localStorage on mount
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (token) {
       setAuthToken(token);
-      // You could add a verification request here
+      // Potentially verify token with backend here
     }
   }, []);
 
-  // Sign up with Google
+  // Sample function for Google signup
   const signupWithGoogle = () => {
     window.location.href = 'http://localhost:3001/auth/google';
   };
 
-  // Normal signup
+  // Regular email/password signup placeholder
   const signup = async (email, password) => {
-    // Implementation for regular signup
-    return false;
+    try {
+      setLoading(true);
+      // Make API call to your auth service here
+      // Example:
+      // const response = await fetch(…);
+      // ...
+      setLoading(false);
+      return true; // or handle success/failure
+    } catch (err) {
+      setLoading(false);
+      setError('Signup failed');
+      return false;
+    }
   };
 
-  // Logout function
   const logout = () => {
     localStorage.removeItem('authToken');
-    setAuthToken(null);
+    setAuthToken('');
     setUser(null);
   };
 
-  // Create the context value object with all functions and state
+  // Context value object
   const contextValue = {
     user,
+    setUser,
     authToken,
     setAuthToken,
     loading,
