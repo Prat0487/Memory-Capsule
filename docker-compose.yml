@@ -9,6 +9,7 @@ services:
     environment:
       - VITE_API_URL=http://memory-service:3000
       - VITE_AUTH_URL=http://auth-service:3001
+      - VITE_BLOCKCHAIN_URL=http://blockchain-service:3004
     depends_on:
       - memory-service
       - auth-service

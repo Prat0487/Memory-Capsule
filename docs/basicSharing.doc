@@ -34,7 +34,7 @@ Technical Feasibility: It's relatively straightforward to implement compared to 
 
 Network Effects: Sharing creates viral growth potential as each shared memory introduces new users to your platform.
 
-Technical Foundation: Your database already has the structure in place with ipfs_hash that can be leveraged for public access links.
+Technical Foundation: Your database already has the structure in place with ipfsHash that can be leveraged for public access links.
 
 Implementation Approach:
 The sharing feature should include:
