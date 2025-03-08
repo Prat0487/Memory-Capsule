@@ -1,24 +1,8 @@
-import React, { useState, createContext } from 'react';
+import { AuthContextImplementation, AuthProviderImplementation } from './AuthImplementation';
 
-export const AuthContext = createContext({});
+// Re-export with original names
+export const AuthContext = AuthContextImplementation;
+export const AuthProvider = AuthProviderImplementation;
 
-export const AuthProvider = ({ children }) => {
-  const [token, setToken] = useState(null);
-  
-  // Extremely minimal implementation
-  const signupWithGoogle = () => {
-    window.location.href = 'http://localhost:3001/auth/google';
-  };
-  
-  const value = { 
-    isAuthenticated: Boolean(token),
-    setToken,
-    signupWithGoogle
-  };
-  
-  return React.createElement(
-    AuthContext.Provider,
-    { value },
-    children
-  );
-};
+// Default export for compatibility
+export default { AuthContext, AuthProvider };

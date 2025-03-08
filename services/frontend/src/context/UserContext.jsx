@@ -1,73 +1,14 @@
-// src/context/UserContext.jsx
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import { connectWallet, verifyWalletConnection } from '../services/wallet'
+// File: services/frontend/src/context/UserContext.jsx
+import { AuthContextImplementation, useAuthImplementation } from './AuthImplementation'
 
-const UserContext = createContext()
+// Re-export with names expected by components using UserContext
+export const UserContext = AuthContextImplementation
+export const useUser = useAuthImplementation
 
+// Wrapper provider that uses the implementation
 export function UserProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [providerReady, setProviderReady] = useState(false)
-
-  useEffect(() => {
-    const checkProvider = () => {
-      if (window.ethereum) {
-        setProviderReady(true)
-        checkConnection()
-      }
-    }
-    
-    checkProvider()
-    window.addEventListener('ethereum#initialized', checkProvider)
-    
-    return () => {
-      window.removeEventListener('ethereum#initialized', checkProvider)
-    }
-  }, [])
-
-  const handleConnect = async () => {
-    if (!providerReady) {
-      alert("Please install MetaMask to connect wallet")
-      return
-    }
-
-    setLoading(true)
-    try {
-      const walletData = await connectWallet()
-      setUser({
-        address: walletData.address,
-        balance: walletData.balance,
-        connected: true
-      })
-    } catch (error) {
-      console.error('Wallet connection failed:', error)
-      throw error
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const checkConnection = async () => {
-    if (providerReady) {
-      const isConnected = await verifyWalletConnection()
-      if (isConnected) {
-        handleConnect()
-      }
-    }
-  }
-  return (
-    <UserContext.Provider value={{ 
-      currentUser: user,  // Rename to currentUser
-      loading,
-      providerReady,
-      connectWallet: handleConnect,
-      checkConnection 
-    }}>
-      {children}
-    </UserContext.Provider>
-  )
+  return <AuthProviderImplementation>{children}</AuthProviderImplementation>
 }
 
-export function useUser() {
-  return useContext(UserContext)
-}
+// Default export for compatibility
+export default { UserContext, UserProvider, useUser }
