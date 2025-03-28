@@ -11,23 +11,25 @@ ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_AUTH_URL=$VITE_AUTH_URL
 RUN npm run build
 
-# Production stage - using a SIMPLER approach
 FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
 
-# Create nginx config
+# Copy the built app
+COPY ./dist /usr/share/nginx/html
+
+# Create a simple nginx config
 RUN echo 'server { \
-    listen $PORT; \
+    listen 3006; \
     root /usr/share/nginx/html; \
     location / { \
         try_files $uri $uri/ /index.html; \
     } \
-}' > /etc/nginx/conf.d/default.template
+    location /api { \
+        proxy_pass http://memory-service:3000; \
+        proxy_set_header Host $host; \
+        proxy_set_header X-Real-IP $remote_addr; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
 
-# Use shell form with proper escaping
-CMD /bin/sh -c '\
-    export PORT="${PORT:-3006}"; \
-    envsubst < /etc/nginx/conf.d/default.template > /etc/nginx/conf.d/default.conf; \
-    cat /etc/nginx/conf.d/default.conf; \
-    echo "Starting nginx..."; \
-    nginx -g "daemon off;"'
+EXPOSE 3006
+
+CMD ["nginx", "-g", "daemon off;"]
