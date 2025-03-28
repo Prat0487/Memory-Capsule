@@ -1,0 +1,30 @@
+FROM node:18
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+# Explicitly install the pinata SDK
+RUN npm install @pinata/sdk
+
+# Copy the rest of the application
+COPY . .
+
+# Rename server.js to server.cjs 
+RUN cp src/server.js src/server.cjs
+
+# Add the PORT variable and fix the Pinata SDK initialization
+RUN sed -i 's/app.listen(3002/const PORT = process.env.PORT || 3002;\napp.listen(PORT/' src/server.cjs && \
+    sed -i 's/const pinata = pinataSDK/const pinata = new pinataSDK/' src/server.cjs
+
+# Add this to your Dockerfile to debug
+RUN grep -A 2 "pinataSDK" src/server.js
+RUN grep -A 2 "pinata =" src/server.js
+
+EXPOSE 8080
+
+# Use server.cjs instead of server.js
+CMD ["node", "src/server.cjs"]

@@ -1,0 +1,43 @@
+FROM node:18
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+RUN npm install
+
+# Copy the rest of the application
+COPY . .
+
+# Create directories needed
+RUN mkdir -p /app/temp /app/config
+
+# Create a temporary script to modify the port
+RUN echo "const fs = require('fs');\
+const path = require('path');\
+const serverFile = path.join(__dirname, 'src/server.js');\
+let content = fs.readFileSync(serverFile, 'utf8');\
+if (content.includes('const PORT = process.env.PORT || 3003') === false) {\
+  content = content.replace(\
+    /const \w+ = require\('[^']+'\);(?!.*const \w+ = require)/,\
+    '$&\\nconst PORT = process.env.PORT || 3003;'\
+  );\
+  content = content.replace(\
+    /app\.listen\(\d+/,\
+    'app.listen(PORT'\
+  );\
+  fs.writeFileSync(serverFile, content);\
+  console.log('Modified server.js to use PORT environment variable');\
+} else {\
+  console.log('server.js already uses PORT environment variable');\
+}" > /app/modify-port.js
+
+# Run the script to modify the port
+RUN node /app/modify-port.js
+
+# Set environment variables
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+EXPOSE 8080
+
+CMD ["node", "src/server.js"]

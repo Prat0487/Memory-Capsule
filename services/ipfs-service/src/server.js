@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3002;
 // Pinata configuration
 const PINATA_API_KEY = '5561fc9f998e04f95ce9';
 const PINATA_SECRET = '864a554db010247820f1cbdac1f73c91f05c83296be4a00e163d4b40205d0f93';
-const pinata = pinataSDK(PINATA_API_KEY, PINATA_SECRET);
+const pinata = new pinataSDK(PINATA_API_KEY, PINATA_SECRET);
 
 // Middleware
 app.use(cors());
@@ -214,6 +214,6 @@ app.post('/upload-base64', express.json({ limit: '50mb' }), async (req, res) => 
   }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`IPFS Storage Service running on port ${PORT} bound to all interfaces`);
+app.listen(PORT, () => {
+  console.log(`IPFS service running on port ${PORT}`);
 });
