@@ -1,0 +1,1 @@
+gcloud run deploy frontend --image=us-central1-docker.pkg.dev/memory-capsule-452713/memory-capsule-repo/frontend:latest --platform=managed --region=us-central1 --allow-unauthenticated --set-env-vars="MEMORY_SERVICE_URL=https://memory-service-459964348020.us-central1.run.app"
