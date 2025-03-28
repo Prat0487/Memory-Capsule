@@ -5,8 +5,9 @@ services:
     build: ./services/frontend
     container_name: frontend
     ports:
-      - "3006:3006"
+      - "3006:3006"  # Map local 3006 to container 3006
     environment:
+      - PORT=3006  # Set port for local development
       - VITE_API_URL=http://memory-service:3000
       - VITE_AUTH_URL=http://auth-service:3001
     depends_on:

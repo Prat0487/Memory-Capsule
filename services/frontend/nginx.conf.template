@@ -1,4 +1,5 @@
 server {
+    # Use the PORT environment variable (Cloud Run sets this to 8080)
     listen ${PORT};
     
     root /usr/share/nginx/html;
@@ -8,12 +9,16 @@ server {
     error_log /var/log/nginx/error.log debug;
     access_log /var/log/nginx/access.log;
     
+    # This is critical for SPA routing
     location / {
         try_files $uri $uri/ /index.html;
+        # Prevent caching for easier testing
+        add_header Cache-Control "no-store, no-cache, must-revalidate";
     }
     
-    # Configure API proxies
+    # Configure API proxies - adjust based on environment
     location /api {
+        # In Cloud Run, this would be the URL of your memory-service
         proxy_pass http://memory-service:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
