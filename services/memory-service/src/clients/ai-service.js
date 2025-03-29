@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:3001';
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://ai-service:3003';
 
 export const generateNarrative = async (description) => {
   try {

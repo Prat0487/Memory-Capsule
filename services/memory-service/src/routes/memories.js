@@ -11,7 +11,7 @@ const generateNarrative = async (description) => {
     console.log(`Requesting narrative from AI service for description: "${description.substring(0, 30)}..."`);
     
     // Direct HTTP call to the AI service
-    const aiResponse = await axios.post('http://ai-service:3001/api/generate-narrative', {
+    const aiResponse = await axios.post('http://ai-service:3003/api/generate-narrative', {
       description
     }, { 
       timeout: 10000 
@@ -72,7 +72,7 @@ const updateMemoryImage = async (req, res) => {
       console.log(`Requesting image enhancement for hash: ${ipfsHash}`);
     
       // Direct HTTP call to the AI service - using service name, not localhost
-      const aiResponse = await axios.post('http://ai-service:3001/api/enhance-image', {
+      const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
         description,
         ipfsHash
       }, { 
@@ -152,69 +152,79 @@ router.get('/api/memories/shared/:id', async (req, res) => {
 
 router.post('/update-image', updateMemoryImage);
 
-// Example of how the memory service might call the AI service
+// Implement this simpler, more direct approach
 app.post('/api/enhance-memory-image', async (req, res) => {
   try {
     const { memoryId, ipfsHash, description } = req.body;
     
-    if (!memoryId || !ipfsHash) {
+    console.log(`Enhancing image for memory ${memoryId}: ${ipfsHash}`);
+    console.log(`Original hash type: ${typeof ipfsHash}, value: "${ipfsHash}"`);
+    
+    // Call the AI service
+    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+      ipfsHash,
+      description: description || ''
+    });
+    
+    // Log the full response for debugging
+    console.log('AI service response:', JSON.stringify(aiResponse.data));
+    
+    // Extract enhanced hash directly from response
+    const enhancedHash = aiResponse.data.enhancedIpfsHash;
+    console.log(`Enhanced hash: "${enhancedHash}"`);
+    
+    // CRITICAL: Log the raw comparison
+    console.log(`Direct comparison: original="${ipfsHash}" vs enhanced="${enhancedHash}"`);
+    console.log(`Are they equal? ${ipfsHash === enhancedHash}`);
+    
+    // Simplified validation
+    if (!enhancedHash || enhancedHash === ipfsHash) {
+      console.log('Simple equality check: No enhancement performed');
       return res.status(400).json({
         success: false,
-        error: 'Memory ID and IPFS hash are required'
+        message: 'No image enhancement was performed'
       });
     }
     
-    console.log(`Enhancing image for memory ${memoryId}: ${ipfsHash}`);
-    
-    // Call the AI service to enhance the image
-    const aiResponse = await axios.post('http://ai-service:3001/api/enhance-image', {
-      ipfsHash,
-      description: description || 'Memory image enhancement'
-    });
-    
-    // Log the response for debugging
-    console.log('AI service response:', JSON.stringify(aiResponse.data, null, 2));
-    
-    if (aiResponse.data.success) {
-      // Update the memory with the enhanced image
-      try {
-        const updated = await updateMemoryWithEnhancement(
-          memoryId, 
-          aiResponse.data,
-          ipfsHash // Pass the original hash for comparison
-        );
-        
-        if (updated) {
-          // Get the updated memory
-          const memory = await getMemoryById(memoryId);
-          
-          return res.status(200).json({
-            success: true,
-            message: 'Memory image enhanced successfully',
-            memory
-          });
-        } else {
-          return res.status(400).json({
-            success: false,
-            message: 'No enhancement performed or invalid enhancement data'
-          });
-        }
-      } catch (updateError) {
-        console.error('Error updating memory with enhancement:', updateError);
-        return res.status(500).json({
+    // Update the memory directly in the database
+    try {
+      const result = await db.query(
+        `UPDATE memories 
+         SET enhanced_image_hash = $1, 
+             enhanced_image_url = $2,
+             updated_at = NOW() 
+         WHERE id = $3 
+         RETURNING *`,
+        [
+          enhancedHash,
+          `https://gateway.pinata.cloud/ipfs/${enhancedHash}`,
+          memoryId
+        ]
+      );
+      
+      if (result.rows.length > 0) {
+        console.log(`Successfully updated memory ${memoryId} with enhanced image hash: ${enhancedHash}`);
+        return res.status(200).json({
+          success: true,
+          message: 'Memory enhanced successfully',
+          memory: result.rows[0]
+        });
+      } else {
+        return res.status(404).json({
           success: false,
-          error: 'Failed to update memory with enhanced image'
+          message: 'Memory not found'
         });
       }
-    } else {
-      return res.status(400).json({
+    } catch (dbError) {
+      console.error('Database error:', dbError);
+      return res.status(500).json({
         success: false,
-        error: aiResponse.data.error || 'AI service failed to enhance image'
+        error: 'Database error'
       });
     }
   } catch (error) {
-    console.error('Error in enhance-memory-image endpoint:', error);
-    res.status(500).json({
+    console.error('Error in enhance endpoint:', error);
+    return res.status(500).json({
       success: false,
       error: error.message || 'Internal server error'
     });

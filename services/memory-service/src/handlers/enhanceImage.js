@@ -1,75 +1,70 @@
-// Update the validation function in the memory service
-function isValidEnhancement(originalHash, enhancedData) {
-  // Log what we're checking for debugging
-  console.log('Validating enhancement:');
-  console.log(`- Original hash: ${originalHash}`);
-  console.log(`- Enhanced data:`, JSON.stringify(enhancedData, null, 2));
+// Update or create this validation function
+function isValidEnhancement(originalHash, enhancementData) {
+  // Add detailed logging for troubleshooting
+  console.log('Enhancement validation:');
+  console.log(`- Original hash: "${originalHash}"`);
+  console.log(`- Enhanced data:`, JSON.stringify(enhancementData, null, 2));
   
-  // First, check if we have a valid enhancedIpfsHash that's different from the original
-  if (!enhancedData.enhancedIpfsHash) {
-    console.log('No enhanced hash provided');
+  // Check if we have the required fields
+  if (!enhancementData || !enhancementData.enhancedIpfsHash) {
+    console.warn('Missing enhancedIpfsHash in enhancement data');
     return false;
   }
   
-  if (enhancedData.enhancedIpfsHash === originalHash) {
-    console.log('Enhanced hash matches original hash, not a valid enhancement');
+  // CRITICAL FIX: Ensure strings are trimmed for comparison
+  const originalTrimmed = originalHash.trim();
+  const enhancedTrimmed = enhancementData.enhancedIpfsHash.trim();
+  
+  // Debug log the trimmed values
+  console.log(`- Trimmed original: "${originalTrimmed}"`);
+  console.log(`- Trimmed enhanced: "${enhancedTrimmed}"`);
+  
+  // Compare the hashes after trimming
+  if (originalTrimmed === enhancedTrimmed) {
+    console.warn('Enhanced hash matches original hash after trimming');
     return false;
   }
   
-  // Additional checks if needed
-  if (enhancedData.isLocalStorage) {
-    // For local storage, we need a valid URL
-    if (!enhancedData.enhancedImageUrl || !enhancedData.enhancedImageUrl.startsWith('/local-image/')) {
-      console.log('Invalid local storage URL');
-      return false;
-    }
-  } else {
-    // For IPFS, the hash should start with 'bafy' or another valid IPFS prefix
-    if (!enhancedData.enhancedIpfsHash.startsWith('bafy')) {
-      console.log('Invalid IPFS hash format');
-      return false;
-    }
-  }
-  
-  console.log('Enhancement validation passed!');
+  console.log('Enhancement validation passed: hashes are different');
   return true;
 }
 
-// Update the memory enhancement handler
+// Then update your enhancement handler function
 async function updateMemoryWithEnhancement(memoryId, enhancementData, originalHash) {
-  // Validate the enhancement data
+  console.log(`Attempting to update memory ${memoryId} with enhancement`);
+  
   if (!isValidEnhancement(originalHash, enhancementData)) {
-    console.log('No enhancement performed or same image returned, only using original image');
+    console.log('No enhancement performed or same image returned');
     return false;
   }
   
   try {
     // Update the memory with enhanced image information
+    const enhancedHash = enhancementData.enhancedIpfsHash.trim();
+    const enhancedUrl = enhancementData.enhancedImageUrl || 
+                        `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+    
+    console.log(`Updating memory ${memoryId} with enhanced hash: ${enhancedHash}`);
+    
     const result = await db.query(
       `UPDATE memories 
        SET enhanced_image_hash = $1, 
-           enhanced_image_url = $2, 
-           is_local_enhancement = $3,
-           updated_at = NOW()
-       WHERE id = $4 
+           enhanced_image_url = $2,
+           updated_at = NOW() 
+       WHERE id = $3 
        RETURNING *`,
-      [
-        enhancementData.enhancedIpfsHash,
-        enhancementData.enhancedImageUrl,
-        enhancementData.isLocalStorage || false,
-        memoryId
-      ]
+      [enhancedHash, enhancedUrl, memoryId]
     );
     
     if (result.rows.length > 0) {
-      console.log(`Successfully updated memory ${memoryId} with enhanced image hash ${enhancementData.enhancedIpfsHash}`);
+      console.log(`Successfully updated memory ${memoryId} with enhanced image`);
       return true;
     } else {
-      console.log(`Failed to update memory ${memoryId}: record not found`);
+      console.warn(`Failed to update memory ${memoryId}, record not found`);
       return false;
     }
   } catch (error) {
-    console.error('Error updating memory with enhancement:', error);
-    throw error;
+    console.error(`Error updating memory ${memoryId}:`, error);
+    return false;
   }
 }

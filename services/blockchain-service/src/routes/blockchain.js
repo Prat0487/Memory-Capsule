@@ -54,7 +54,7 @@ router.post('/api/blockchain/enhance-memory-image', async (req, res) => {
     
     // Call the AI service to enhance the image
     const aiServiceResponse = await axios.post(
-      'http://ai-service:3005/api/enhance-image',
+      'http://ai-service:3003/api/enhance-image',
       {
         ipfsHash,
         description

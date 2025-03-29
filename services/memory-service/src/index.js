@@ -104,7 +104,7 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
           console.log(`Starting background narrative generation for memory ${memory.id}`);
           
           // Call AI service to generate narrative
-          const aiResponse = await axios.post('http://ai-service:3001/api/generate-narrative', {
+          const aiResponse = await axios.post('http://ai-service:3003/api/generate-narrative', {
             description
           }, { timeout: 10000 });
           
@@ -137,7 +137,7 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
             console.log(`Enhancing image for memory ${memoryId}`);
             
             // Call AI service for image enhancement
-            const aiResponse = await axios.post('http://ai-service:3001/api/enhance-image', {
+            const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
               description,
               ipfsHash
             }, { timeout: 60000 }); // Increase timeout for image processing

@@ -62,11 +62,12 @@ services:
     build: ./services/ai-service
     container_name: ai-service
     ports:
-      - "3003:3003"
+      - "3003:3003"  # Map external 3003 to internal 3001
     volumes:
       - ./services/ai-service/vertex-ai-key.json:/app/config/google-credentials.json:ro
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/app/config/google-credentials.json
+      - PORT=3003
     networks:
       - memory-capsule-network
     restart: unless-stopped
