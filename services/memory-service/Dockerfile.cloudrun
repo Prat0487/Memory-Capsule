@@ -8,29 +8,59 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
+# Explicitly install missing dependencies
+RUN npm install --save multer express cors @supabase/supabase-js
+
 # Copy the rest of the application
 COPY . .
 
-# Create a CommonJS version of the server if needed
-RUN if [ -f src/server.js ]; then \
-      cp src/server.js src/server.cjs; \
-    elif [ -f src/index.js ]; then \
-      cp src/index.js src/server.cjs; \
-    else \
-      echo "No server.js or index.js found"; \
-      exit 1; \
-    fi
-
-# Update the PORT variable to use environment variable
-RUN sed -i 's/const PORT = [0-9]\+/const PORT = process.env.PORT || 8080/' src/server.cjs || echo "No hardcoded port found, may already be using PORT env var"
-
-# Fix any ES module issues by converting to CommonJS if needed
-RUN sed -i 's/export const/module.exports./' src/server.cjs || echo "No exports to convert"
-RUN sed -i 's/import {/const {/' src/server.cjs || echo "No imports to convert"
-RUN sed -i 's/} from/} = require(/' src/server.cjs || echo "No imports to convert"
-RUN sed -i 's/import /const /' src/server.cjs || echo "No imports to convert"
-RUN sed -i 's/ from / = require(/g' src/server.cjs || echo "No imports to convert"
-RUN sed -i 's/;$/);/g' src/server.cjs || echo "No import statements to fix"
+# Create a clean CommonJS server file that avoids syntax errors
+RUN echo "// CommonJS server for memory service\n\
+const express = require('express');\n\
+const cors = require('cors');\n\
+const multer = require('multer');\n\
+const { createClient } = require('@supabase/supabase-js');\n\
+\n\
+// Set up Supabase client\n\
+const supabaseUrl = process.env.SUPABASE_URL || 'https://lsijhlxvtztpjdvyjnwl.supabase.co';\n\
+const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI';\n\
+const supabase = createClient(supabaseUrl, supabaseKey);\n\
+\n\
+// Initialize Express app\n\
+const app = express();\n\
+\n\
+// Middleware\n\
+app.use(cors());\n\
+app.use(express.json());\n\
+\n\
+// Define upload middleware\n\
+const upload = multer({ storage: multer.memoryStorage() });\n\
+\n\
+// Define routes by importing the route handlers\n\
+try {\n\
+  const memoriesRoutes = require('./routes/memories.js');\n\
+  app.use('/memories', memoriesRoutes);\n\
+} catch (error) {\n\
+  console.error('Failed to load memories routes:', error);\n\
+}\n\
+\n\
+// Health check endpoint\n\
+app.get('/health', (req, res) => {\n\
+  res.status(200).send('OK');\n\
+});\n\
+\n\
+// Root endpoint to verify service is working\n\
+app.get('/', (req, res) => {\n\
+  res.status(200).json({ status: 'Memory service is running' });\n\
+});\n\
+\n\
+// Define PORT - Cloud Run requires using the PORT env var\n\
+const PORT = process.env.PORT || 8080;\n\
+\n\
+// Start the server\n\
+app.listen(PORT, () => {\n\
+  console.log(`Memory service running on port ${PORT}`);\n\
+});\n" > src/server.cjs
 
 # Expose Cloud Run port
 EXPOSE 8080
