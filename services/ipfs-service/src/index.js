@@ -21,6 +21,21 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
+app.get('/healthcheck', (req, res) => {
+  console.log('Health check received');
+  res.status(200).json({
+    status: 'healthy',
+    endpoints: [
+      { path: '/upload', method: 'POST', description: 'Upload file to IPFS' },
+      // List other endpoints
+    ]
+  });
+});
+
+console.log('IPFS service initialized with routes:');
+console.log('- POST /upload: Upload file to IPFS');
+// List other routes
+
 app.post('/upload', upload.array('files'), async (req, res) => {
   try {
     console.log("Processing upload request");

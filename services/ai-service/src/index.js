@@ -7,10 +7,23 @@ import path from 'path';
 import FormData from 'form-data';
 import { getGenerativeModel } from './clients/vertex-client.js';
 import sharp from 'sharp';
+import { fileURLToPath } from 'url';
+
+// Create __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+// Add this line to serve static files
+app.use('/enhanced-images', express.static(path.join(__dirname, '../public/enhanced-images')));
+
+// Create directory if it doesn't exist
+const enhancedImagesDir = path.join(__dirname, '../public/enhanced-images');
+if (!fs.existsSync(enhancedImagesDir)) {
+  fs.mkdirSync(enhancedImagesDir, { recursive: true });
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {

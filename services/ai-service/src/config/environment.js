@@ -7,4 +7,13 @@ export const environment = {
     modelName: process.env.VERTEX_MODEL || 'gemini-1.5-pro',
     maxRetries: 3,
     timeoutMs: 30000
-};  
+};
+
+// Add configuration for IPFS gateways with prioritization
+export const ipfsGateways = [
+  'https://gateway.pinata.cloud/ipfs/',
+  'https://nftstorage.link/ipfs/',  // Add this reliable gateway
+  'https://dweb.link/ipfs/',        // Move up in priority since it's working
+  'https://ipfs.io/ipfs/',
+  'https://cloudflare-ipfs.com/ipfs/'
+];

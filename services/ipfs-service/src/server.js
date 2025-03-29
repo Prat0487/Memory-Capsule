@@ -214,6 +214,14 @@ app.post('/upload-base64', express.json({ limit: '50mb' }), async (req, res) => 
   }
 });
 
+// Add health check endpoint
+app.get('/healthcheck', (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`IPFS service running on port ${PORT}`);
 });
