@@ -13,27 +13,23 @@ RUN npm run build
 
 FROM nginx:alpine
 
-# Create directory for the app
-RUN mkdir -p /usr/share/nginx/html
+# Copy the built app
+COPY ./dist /usr/share/nginx/html
 
-# Create a simple index.html
-RUN echo '<html><head><title>Memory Capsule</title></head><body><h1>Memory Capsule Frontend</h1><p>This is a test page.</p></body></html>' > /usr/share/nginx/html/index.html
-
-# Create a simple test file to verify content updates
-RUN echo 'test content' > /usr/share/nginx/html/test.html
-
-# Create a simple nginx config for Cloud Run (port 8080)
+# Create a simple nginx config
 RUN echo 'server { \
-    listen 8080; \
+    listen 3006; \
     root /usr/share/nginx/html; \
     location / { \
         try_files $uri $uri/ /index.html; \
     } \
-    location /health { \
-        return 200 "OK"; \
+    location /api { \
+        proxy_pass http://memory-service:3000; \
+        proxy_set_header Host $host; \
+        proxy_set_header X-Real-IP $remote_addr; \
     } \
 }' > /etc/nginx/conf.d/default.conf
 
-EXPOSE 8080
+EXPOSE 3006
 
 CMD ["nginx", "-g", "daemon off;"]
