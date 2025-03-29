@@ -81,3 +81,30 @@ export const trackMemoryShare = async (memoryId) => {
     return false;
   }
 };
+
+export const updateMemoryWithEnhancedImage = async (memoryId, enhancedImageData) => {
+  const { enhancedIpfsHash, imageUrl, isLocal } = enhancedImageData;
+  
+  try {
+    const { data, error } = await supabase
+      .from('memories')
+      .update({ 
+        enhancedImageHash: enhancedIpfsHash,
+        enhancedImageUrl: imageUrl,
+        isLocalEnhancement: isLocal || false,
+        updatedAt: new Date().toISOString()
+      })
+      .eq('id', memoryId)
+      .select();
+    
+    if (error) {
+      console.error('Error updating memory with enhanced image:', error);
+      throw error;
+    }
+    
+    return data[0];
+  } catch (error) {
+    console.error('Error updating memory with enhanced image:', error);
+    throw error;
+  }
+};
