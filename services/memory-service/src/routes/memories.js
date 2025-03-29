@@ -152,4 +152,73 @@ router.get('/api/memories/shared/:id', async (req, res) => {
 
 router.post('/update-image', updateMemoryImage);
 
+// Example of how the memory service might call the AI service
+app.post('/api/enhance-memory-image', async (req, res) => {
+  try {
+    const { memoryId, ipfsHash, description } = req.body;
+    
+    if (!memoryId || !ipfsHash) {
+      return res.status(400).json({
+        success: false,
+        error: 'Memory ID and IPFS hash are required'
+      });
+    }
+    
+    console.log(`Enhancing image for memory ${memoryId}: ${ipfsHash}`);
+    
+    // Call the AI service to enhance the image
+    const aiResponse = await axios.post('http://ai-service:3001/api/enhance-image', {
+      ipfsHash,
+      description: description || 'Memory image enhancement'
+    });
+    
+    // Log the response for debugging
+    console.log('AI service response:', JSON.stringify(aiResponse.data, null, 2));
+    
+    if (aiResponse.data.success) {
+      // Update the memory with the enhanced image
+      try {
+        const updated = await updateMemoryWithEnhancement(
+          memoryId, 
+          aiResponse.data,
+          ipfsHash // Pass the original hash for comparison
+        );
+        
+        if (updated) {
+          // Get the updated memory
+          const memory = await getMemoryById(memoryId);
+          
+          return res.status(200).json({
+            success: true,
+            message: 'Memory image enhanced successfully',
+            memory
+          });
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: 'No enhancement performed or invalid enhancement data'
+          });
+        }
+      } catch (updateError) {
+        console.error('Error updating memory with enhancement:', updateError);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to update memory with enhanced image'
+        });
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: aiResponse.data.error || 'AI service failed to enhance image'
+      });
+    }
+  } catch (error) {
+    console.error('Error in enhance-memory-image endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Internal server error'
+    });
+  }
+});
+
 export default router;

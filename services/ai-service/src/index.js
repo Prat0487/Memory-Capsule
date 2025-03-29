@@ -89,15 +89,17 @@ const MAX_UPLOAD_RETRIES = 5;
 const DNS_RETRY_DELAY = 2000; // 2 seconds
 
 // Function to upload to Pinata with DNS retry
-async function uploadToPinata(buffer, filename, metadata) {
+async function uploadToPinata(buffer, filename, metadata, maxRetries = 5) {
   let retryCount = 0;
   
-  while (retryCount < MAX_UPLOAD_RETRIES) {
+  while (retryCount < maxRetries) {
     try {
       if (retryCount > 0) {
-        console.log(`Retrying Pinata upload (attempt ${retryCount + 1}/${MAX_UPLOAD_RETRIES})...`);
-        await new Promise(resolve => setTimeout(resolve, DNS_RETRY_DELAY * Math.pow(1.5, retryCount)));
+        console.log(`Retrying Pinata upload (attempt ${retryCount + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, Math.min(Math.pow(2, retryCount) * 1000, 10000)));
       }
+      
+      console.log('Uploading to Pinata...');
       
       const formData = new FormData();
       
@@ -117,13 +119,12 @@ async function uploadToPinata(buffer, filename, metadata) {
       formData.append('pinataOptions', pinataOptions);
       
       // Try uploading to Pinata
-      console.log('Uploading to Pinata...');
       const pinataResponse = await axios.post(
         'https://api.pinata.cloud/pinning/pinFileToIPFS',
         formData,
         {
           maxBodyLength: Infinity,
-          timeout: 30000, // 30 second timeout
+          timeout: 30000,
           headers: {
             'Authorization': `Bearer ${JWT}`,
             ...formData.getHeaders()
@@ -135,17 +136,18 @@ async function uploadToPinata(buffer, filename, metadata) {
       return pinataResponse.data.IpfsHash;
     } catch (error) {
       retryCount++;
-      console.error(`Upload attempt ${retryCount} failed:`, error.message);
       
       if (error.code === 'EAI_AGAIN' || error.code === 'ENOTFOUND') {
         console.log('DNS resolution error, will retry...');
-      } else if (retryCount >= MAX_UPLOAD_RETRIES) {
-        throw error;
+      } else {
+        console.log(`Upload attempt ${retryCount} failed: ${error.message}`);
+      }
+      
+      if (retryCount >= maxRetries) {
+        throw new Error(`Failed to upload after ${maxRetries} attempts: ${error.message}`);
       }
     }
   }
-  
-  throw new Error(`Failed to upload to Pinata after ${MAX_UPLOAD_RETRIES} attempts`);
 }
 
 // Function to encode image as base64 (fallback storage)
@@ -153,10 +155,10 @@ function encodeImageToBase64(buffer) {
   return buffer.toString('base64');
 }
 
-// Gateway manager with rate limit awareness
+// Enhanced gateway manager with success tracking
 const gatewayManager = {
   gateways: [
-    'https://dweb.link/ipfs/',       // Move this to first position since it's working
+    'https://dweb.link/ipfs/',            // Historically reliable
     'https://gateway.pinata.cloud/ipfs/',
     'https://ipfs.io/ipfs/',
     'https://cloudflare-ipfs.com/ipfs/',
@@ -166,17 +168,61 @@ const gatewayManager = {
   // Track rate limited gateways with cool-down periods
   rateLimited: new Map(),
   
-  // Get the best available gateway
+  // Track success/failure history
+  history: new Map(),
+  
+  // Initialize history for all gateways
+  initialize() {
+    this.gateways.forEach(gateway => {
+      if (!this.history.has(gateway)) {
+        this.history.set(gateway, {
+          success: 0,
+          failure: 0,
+          lastSuccess: null,
+          successRate: 0
+        });
+      }
+    });
+  },
+  
+  // Record a successful download
+  recordSuccess(gateway) {
+    if (!this.history.has(gateway)) {
+      this.initialize();
+    }
+    
+    const stats = this.history.get(gateway);
+    stats.success++;
+    stats.lastSuccess = Date.now();
+    stats.successRate = stats.success / (stats.success + stats.failure);
+    
+    console.log(`Gateway ${gateway} success rate: ${(stats.successRate * 100).toFixed(1)}%`);
+  },
+  
+  // Record a failed download
+  recordFailure(gateway, statusCode) {
+    if (!this.history.has(gateway)) {
+      this.initialize();
+    }
+    
+    const stats = this.history.get(gateway);
+    stats.failure++;
+    stats.successRate = stats.success / (stats.success + stats.failure);
+    
+    console.log(`Gateway ${gateway} failed with ${statusCode}, success rate: ${(stats.successRate * 100).toFixed(1)}%`);
+  },
+  
+  // Get the best available gateway based on historical performance
   getGateway() {
+    this.initialize();
     const now = Date.now();
     
-    // Filter out rate-limited gateways that haven't cooled down
+    // Filter out rate-limited gateways
     const availableGateways = this.gateways.filter(gateway => {
       if (!this.rateLimited.has(gateway)) return true;
       
       const cooldownUntil = this.rateLimited.get(gateway);
       if (now > cooldownUntil) {
-        // Cooldown period expired, remove from rate limited list
         this.rateLimited.delete(gateway);
         return true;
       }
@@ -196,12 +242,35 @@ const gatewayManager = {
         }
       });
       
-      console.log(`All gateways rate limited. Using ${bestGateway} (cooldown in ${(earliestCooldown - now)/1000}s)`);
       return bestGateway;
     }
     
-    // Return a random available gateway
-    return availableGateways[Math.floor(Math.random() * availableGateways.length)];
+    // Special case: if dweb.link is available and has any success, prioritize it
+    const dwebLink = 'https://dweb.link/ipfs/';
+    if (availableGateways.includes(dwebLink) && 
+        this.history.has(dwebLink) && 
+        this.history.get(dwebLink).success > 0) {
+      console.log('Prioritizing dweb.link based on past success');
+      return dwebLink;
+    }
+    
+    // Sort gateways by success rate (highest first)
+    const sortedGateways = [...availableGateways].sort((a, b) => {
+      const statsA = this.history.get(a) || { successRate: 0 };
+      const statsB = this.history.get(b) || { successRate: 0 };
+      
+      // If success rates are close, prefer the one with more attempts
+      if (Math.abs(statsA.successRate - statsB.successRate) < 0.1) {
+        const attemptsA = statsA.success + statsA.failure;
+        const attemptsB = statsB.success + statsB.failure;
+        return attemptsB - attemptsA;
+      }
+      
+      return statsB.successRate - statsA.successRate;
+    });
+    
+    // Choose the gateway with highest success rate
+    return sortedGateways[0];
   },
   
   // Mark a gateway as rate limited
@@ -212,17 +281,52 @@ const gatewayManager = {
   }
 };
 
-// Async function to download from IPFS with rate limit awareness
+// Near the initialization code
+const HISTORY_FILE = '/app/data/gateway-history.json';
+
+// Load history from file if it exists
+try {
+  if (fs.existsSync(HISTORY_FILE)) {
+    const historyData = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
+    historyData.forEach((entry) => {
+      gatewayManager.history.set(entry.gateway, entry.stats);
+    });
+    console.log('Loaded gateway history from file');
+  }
+} catch (error) {
+  console.warn('Failed to load gateway history:', error.message);
+}
+
+// Save history periodically
+setInterval(() => {
+  try {
+    const historyData = Array.from(gatewayManager.history.entries()).map(([gateway, stats]) => ({
+      gateway,
+      stats
+    }));
+    
+    fs.mkdirSync('/app/data', { recursive: true });
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify(historyData, null, 2));
+    console.log('Saved gateway history to file');
+  } catch (error) {
+    console.warn('Failed to save gateway history:', error.message);
+  }
+}, 60000); // Save every minute
+
+// Update the download function to use and update the performance history
 async function downloadFromIPFS(ipfsHash, maxAttempts = 10) {
+  // Initialize gateway history if not done yet
+  gatewayManager.initialize();
+  
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     // Add a delay if this is a retry
     if (attempt > 0) {
-      const delay = Math.min(Math.pow(2, attempt) * 1000, 30000); // Cap at 30 seconds
+      const delay = Math.min(Math.pow(2, attempt) * 1000, 30000);
       console.log(`Retry attempt ${attempt+1}/${maxAttempts}, waiting ${delay/1000}s...`);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
     
-    // Get the best gateway
+    // Get the best gateway based on performance history
     const gateway = gatewayManager.getGateway();
     const url = `${gateway}${ipfsHash}`;
     
@@ -231,23 +335,32 @@ async function downloadFromIPFS(ipfsHash, maxAttempts = 10) {
       
       const response = await axios.get(url, {
         responseType: 'arraybuffer',
-        timeout: 15000, // 15 second timeout
+        timeout: 15000,
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
         }
       });
       
+      // Record successful download
+      gatewayManager.recordSuccess(gateway);
       console.log(`Successfully downloaded from ${gateway} (${response.data.length} bytes)`);
       return Buffer.from(response.data);
     } catch (error) {
+      const statusCode = error.response?.status || 'network error';
       console.warn(`Failed to download from ${gateway}: ${error.message}`);
       
-      if (error.response && error.response.status === 429) {
-        // This gateway is rate limited, mark it with a longer cooldown
+      // Record failure
+      gatewayManager.recordFailure(gateway, statusCode);
+      
+      if (error.response?.status === 429) {
+        // This gateway is rate limited
         gatewayManager.markRateLimited(gateway, 120); // 2 minute cooldown
+      } else if (error.response?.status === 403) {
+        // Forbidden - this gateway likely doesn't have the content
+        gatewayManager.markRateLimited(gateway, 300); // 5 minute cooldown
       } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
-        // Gateway timeout, mark with a short cooldown
+        // Gateway timeout
         gatewayManager.markRateLimited(gateway, 30); // 30 second cooldown
       }
       
@@ -358,12 +471,80 @@ app.post('/api/enhance-image', async (req, res) => {
     
     console.log(`Enhancing image ${ipfsHash} based on description: ${description}`);
     
-    const enhancedImage = await enhanceImageWithAI(description, ipfsHash);
+    // Download the image from IPFS
+    let imageBuffer;
+    try {
+      imageBuffer = await downloadFromIPFS(ipfsHash);
+      console.log(`Image download successful (${imageBuffer.length} bytes)`);
+    } catch (downloadError) {
+      console.error('Failed to download image:', downloadError.message);
+      return res.status(500).json({
+        success: false,
+        error: `Failed to download original image: ${downloadError.message}`
+      });
+    }
     
-    res.status(200).json({
+    // Process the image with sharp
+    let enhancedBuffer;
+    try {
+      console.log('Enhancing image with sharp');
+      enhancedBuffer = await sharp(imageBuffer)
+        .normalize()
+        .modulate({ brightness: 1.1, saturation: 1.2 })
+        .sharpen()
+        .jpeg({ quality: 85 })
+        .toBuffer();
+      console.log(`Image enhanced (${enhancedBuffer.length} bytes)`);
+    } catch (enhanceError) {
+      console.error('Failed to enhance image:', enhanceError.message);
+      return res.status(500).json({
+        success: false,
+        error: `Failed to enhance image: ${enhanceError.message}`
+      });
+    }
+    
+    // Save a local backup
+    const timestamp = Date.now();
+    const filePath = `/tmp/enhanced_${timestamp}.jpg`;
+    await sharp(enhancedBuffer).toFile(filePath);
+    console.log(`Enhanced image saved to ${filePath}`);
+    
+    // Upload to Pinata
+    let enhancedIpfsHash;
+    let isLocalStorage = false;
+    
+    try {
+      console.log('Uploading to Pinata...');
+      enhancedIpfsHash = await uploadToPinata(enhancedBuffer, `enhanced_${timestamp}.jpg`, {
+        name: `Enhanced: ${description.substring(0, 30)}...`,
+        description: description
+      });
+      
+      console.log(`Upload successful, IPFS hash: ${enhancedIpfsHash}`);
+    } catch (uploadError) {
+      console.error('All Pinata upload attempts failed:', uploadError.message);
+      
+      // Fall back to local storage
+      enhancedIpfsHash = `local_${timestamp}`;
+      isLocalStorage = true;
+      
+      console.log(`Using local storage: ${enhancedIpfsHash}`);
+    }
+    
+    // Return the result
+    return res.status(200).json({
       success: true,
       originalIpfsHash: ipfsHash,
-      enhancedImage
+      enhancedIpfsHash: enhancedIpfsHash, // This must be different from the original hash
+      enhancedImageUrl: isLocalStorage 
+        ? `/local-image/${timestamp}`
+        : `https://gateway.pinata.cloud/ipfs/${enhancedIpfsHash}`,
+      isLocalStorage: isLocalStorage,
+      enhancementDetails: {
+        originalSize: imageBuffer.length,
+        enhancedSize: enhancedBuffer.length,
+        timestamp: timestamp
+      }
     });
   } catch (error) {
     console.error('Error in enhance-image API:', error);

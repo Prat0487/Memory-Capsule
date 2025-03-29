@@ -7,9 +7,9 @@ const IpfsImage = ({ hash, alt, className }) => {
   const [gatewayIndex, setGatewayIndex] = useState(0);
   
   const gateways = [
+    'https://dweb.link/ipfs/',
     'https://ipfs.io/ipfs/',
     'https://cloudflare-ipfs.com/ipfs/',
-    'https://dweb.link/ipfs/',
     'https://ipfs.infura.io/ipfs/',
     'https://gateway.pinata.cloud/ipfs/'
   ];
