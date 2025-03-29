@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./services/frontend
+    container_name: frontend
+    ports:
+      - "3006:3006"  # Map local 3006 to container 3006
+    environment:
+      - PORT=3006  # Set port for local development
+      - VITE_API_URL=http://memory-service:3000
+      - VITE_AUTH_URL=http://auth-service:3001
+    depends_on:
+      - memory-service
+      - auth-service
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+  memory-service:
+    build: ./services/memory-service
+    container_name: memory-service
+    ports:
+      - "3000:3000"
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    environment:
+      - PORT=3000
+      - SUPABASE_URL=https://lsijhlxvtztpjdvyjnwl.supabase.co
+      - SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI
+    depends_on:
+      - ipfs-service
+      - ai-service
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+  auth-service:
+    build: ./services/auth-service
+    container_name: auth-service
+    ports:
+      - "3001:3001"
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+  ipfs-service:
+    build: ./services/ipfs-service
+    container_name: ipfs-service
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    ports:
+      - "3002:3002"
+    environment:
+      - PINATA_API_KEY=5561fc9f998e04f95ce9
+      - PINATA_SECRET=864a554db010247820f1cbdac1f73c91f05c83296be4a00e163d4b40205d0f93
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+  ai-service:
+    build: ./services/ai-service
+    container_name: ai-service
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./services/ai-service/vertex-ai-key.json:/app/config/google-credentials.json:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/config/google-credentials.json
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+    init: true
+    stop_signal: SIGINT
+    stop_grace_period: 10s
+
+  blockchain-service:
+    build: ./services/blockchain-service
+    container_name: blockchain-service
+    ports:
+      - "3004:3004"
+    networks:
+      - memory-capsule-network
+    restart: unless-stopped
+
+networks:
+  memory-capsule-network:
+    driver: bridge

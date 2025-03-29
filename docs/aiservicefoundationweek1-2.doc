@@ -1,0 +1,12 @@
+prara@Prateek_Victor MINGW64 /c/GitRepo/Memory-Capsule/services/ai-service (feat/poc)
+$ gcloud projects add-iam-policy-binding memory-capsule-452713 --member=serviceAccount:memory-ai-service@memory-capsule-452713.iam.gserviceaccount.com --role=roles/aiplatform.user
+Updated IAM policy for project [memory-capsule-452713].
+bindings:
+- members:
+  - serviceAccount:memory-ai-service@memory-capsule-452713.iam.gserviceaccount.com
+  role: roles/aiplatform.user
+- members:
+  - user:praras5.PR@gmail.com
+  role: roles/owner
+etag: BwYvhP_VK7Y=
+version: 1

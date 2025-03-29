@@ -1,0 +1,33 @@
+• Set up a React + Vite project with Tailwind CSS for the frontend.
+• Created a basic wallet connection logic (using ethers.js/MetaMask).
+• Implemented IPFS uploads using Pinata (with an ipfs.js service).
+• Created a simple Node/Express server to handle memories creation and retrieval.
+• Added Supabase integration for storing metadata in a “memories” table.
+• Dealt with schema mismatches (ownerAddress vs. owneraddress, ipfsHash casing, etc.).
+• Resolved multiple 500 errors by aligning column names in the database with the JSON payload.
+• Established a minimal flow: upload file to IPFS → store metadata in Supabase → fetch memories.
+
+Memory Capsule: Project Progress Summary
+We've successfully implemented and refined several critical components of the Memory Capsule platform:
+
+Wallet Integration
+Implemented MetaMask wallet connection with proper error handling
+Created a polished wallet display that shows truncated address and ETH balance
+Added authentication gating that requires wallet connection to view memories
+Memory Display System
+Built a responsive memory gallery that renders memory cards from Supabase
+Fixed image rendering to display full, uncropped images in proper containers
+Implemented proper filtering of memories based on wallet address
+Supabase Database Integration
+Replaced mock data storage with real Supabase backend integration
+Created proper data fetching with error handling and loading states
+Implemented memory sharing functionality with shareable links
+User Experience Improvements
+Added a "View Full Memory" button that opens detailed views in new tabs
+Created clear user messaging for different states (no wallet, no memories, etc.)
+Enhanced visual styling with proper spacing, rounded corners, and responsive grid
+Technical Foundations
+Established consistent naming conventions across components and context
+Implemented proper React patterns with useEffect dependencies and conditional rendering
+Added detailed console logging for debugging and development clarity
+This work has transformed the project from a prototype into a functional web3 application where users can connect their Ethereum wallets, view their memories in a visually appealing gallery, and share those memories with others through generated links. The foundation is now set for future enhancements like multi-chain support or advanced memory management features.

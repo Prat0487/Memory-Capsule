@@ -1,0 +1,148 @@
+steps:
+  # Memory Service
+  - id: 'build-memory-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'services/memory-service/Dockerfile.cloudrun', 
+           '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/memory-service:$COMMIT_SHA', 
+           './services/memory-service']
+    waitFor: ['-']  # Start immediately
+  
+  - id: 'push-memory-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/memory-service:$COMMIT_SHA']
+    waitFor: ['build-memory-service']
+  
+  - id: 'deploy-memory-service'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args: ['gcloud', 'run', 'deploy', 'memory-service', 
+           '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/memory-service:$COMMIT_SHA', 
+           '--region', 'us-central1', 
+           '--platform', 'managed', 
+           '--allow-unauthenticated',
+           '--set-env-vars=SUPABASE_URL=https://lsijhlxvtztpjdvyjnwl.supabase.co,SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI']
+    waitFor: ['push-memory-service']
+  
+  # Auth Service
+  - id: 'build-auth-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'services/auth-service/Dockerfile.cloudrun', 
+           '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/auth-service:$COMMIT_SHA', 
+           './services/auth-service']
+    waitFor: ['-']  # Start immediately
+  
+  - id: 'push-auth-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/auth-service:$COMMIT_SHA']
+    waitFor: ['build-auth-service']
+  
+  - id: 'deploy-auth-service'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args: ['gcloud', 'run', 'deploy', 'auth-service', 
+           '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/auth-service:$COMMIT_SHA', 
+           '--region', 'us-central1', 
+           '--platform', 'managed', 
+           '--allow-unauthenticated']
+    waitFor: ['push-auth-service']
+  
+  # IPFS Service
+  - id: 'build-ipfs-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'services/ipfs-service/Dockerfile.cloudrun', 
+           '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/ipfs-service:$COMMIT_SHA', 
+           './services/ipfs-service']
+    waitFor: ['-']  # Start immediately
+  
+  - id: 'push-ipfs-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/ipfs-service:$COMMIT_SHA']
+    waitFor: ['build-ipfs-service']
+  
+  - id: 'deploy-ipfs-service'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args: ['gcloud', 'run', 'deploy', 'ipfs-service', 
+           '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/ipfs-service:$COMMIT_SHA', 
+           '--region', 'us-central1', 
+           '--platform', 'managed', 
+           '--allow-unauthenticated',
+           '--set-env-vars=PINATA_API_KEY=5561fc9f998e04f95ce9,PINATA_SECRET=864a554db010247820f1cbdac1f73c91f05c83296be4a00e163d4b40205d0f93']
+    waitFor: ['push-ipfs-service']
+  
+  # AI Service 
+  - id: 'build-ai-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'services/ai-service/Dockerfile.cloudrun', 
+           '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/ai-service:$COMMIT_SHA', 
+           './services/ai-service']
+    waitFor: ['-']  # Start immediately
+  
+  - id: 'push-ai-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/ai-service:$COMMIT_SHA']
+    waitFor: ['build-ai-service']
+  
+  - id: 'deploy-ai-service'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args: ['gcloud', 'run', 'deploy', 'ai-service', 
+           '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/ai-service:$COMMIT_SHA', 
+           '--region', 'us-central1', 
+           '--platform', 'managed', 
+           '--allow-unauthenticated']
+    waitFor: ['push-ai-service']
+  
+  # Blockchain Service
+  - id: 'build-blockchain-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'services/blockchain-service/Dockerfile.cloudrun', 
+           '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/blockchain-service:$COMMIT_SHA', 
+           './services/blockchain-service']
+    waitFor: ['-']  # Start immediately
+  
+  - id: 'push-blockchain-service'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/blockchain-service:$COMMIT_SHA']
+    waitFor: ['build-blockchain-service']
+  
+  - id: 'deploy-blockchain-service'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args: ['gcloud', 'run', 'deploy', 'blockchain-service', 
+           '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/blockchain-service:$COMMIT_SHA', 
+           '--region', 'us-central1', 
+           '--platform', 'managed', 
+           '--allow-unauthenticated',
+           '--set-env-vars=SUPABASE_URL=https://lsijhlxvtztpjdvyjnwl.supabase.co,SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI']
+    waitFor: ['push-blockchain-service']
+  
+  # Frontend - Build after backend services
+  - id: 'build-frontend'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-f', 'services/frontend/Dockerfile.cloudrun', 
+           '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/frontend:$COMMIT_SHA', 
+           './services/frontend']
+    waitFor: ['-']  # Can build independently
+  
+  - id: 'push-frontend'
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/frontend:$COMMIT_SHA']
+    waitFor: ['build-frontend']
+  
+  - id: 'deploy-frontend'
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    args: ['gcloud', 'run', 'deploy', 'frontend', 
+           '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/frontend:$COMMIT_SHA', 
+           '--region', 'us-central1', 
+           '--platform', 'managed', 
+           '--allow-unauthenticated',
+           '--set-env-vars=VITE_API_URL=https://memory-service-459964348020.us-central1.run.app,VITE_AUTH_URL=https://auth-service-459964348020.us-central1.run.app']
+    # Deploy frontend after all backend services are deployed
+    waitFor: ['push-frontend', 'deploy-memory-service', 'deploy-auth-service', 'deploy-ipfs-service', 'deploy-ai-service', 'deploy-blockchain-service']
+
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/memory-service:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/auth-service:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/ipfs-service:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/ai-service:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/blockchain-service:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/memory-capsule-repo/frontend:$COMMIT_SHA'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

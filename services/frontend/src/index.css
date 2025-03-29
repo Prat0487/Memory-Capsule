@@ -1,0 +1,15 @@
+  @tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+
+  /* Your custom styles below */
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  #root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }

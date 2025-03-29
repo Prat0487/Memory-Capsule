@@ -1,0 +1,82 @@
+FROM node:18
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the application
+COPY . .
+
+# Create a simple and correct CommonJS server file
+RUN echo "// CommonJS server for blockchain service\n\
+const express = require('express');\n\
+const cors = require('cors');\n\
+\n\
+// Try to require supabase with proper error handling\n\
+let supabase;\n\
+try {\n\
+  const { createClient } = require('@supabase/supabase-js');\n\
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://lsijhlxvtztpjdvyjnwl.supabase.co';\n\
+  const supabaseKey = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI';\n\
+  supabase = createClient(supabaseUrl, supabaseKey);\n\
+  console.log('Supabase client created successfully');\n\
+} catch (error) {\n\
+  console.error('Error creating Supabase client:', error);\n\
+  supabase = null;\n\
+}\n\
+\n\
+const app = express();\n\
+\n\
+// Middleware\n\
+app.use(cors());\n\
+app.use(express.json());\n\
+\n\
+// Define PORT - Cloud Run provides this\n\
+const PORT = process.env.PORT || 8080;\n\
+\n\
+// Basic health check\n\
+app.get('/health', (req, res) => {\n\
+  res.status(200).send('OK');\n\
+});\n\
+\n\
+// Blockchain endpoints\n\
+app.post('/api/mint', async (req, res) => {\n\
+  try {\n\
+    if (!supabase) {\n\
+      throw new Error('Supabase client not available');\n\
+    }\n\
+    // Implement your mint logic here\n\
+    res.json({ success: true, message: 'Mint endpoint' });\n\
+  } catch (error) {\n\
+    console.error('Error in mint endpoint:', error);\n\
+    res.status(500).json({ success: false, error: error.message });\n\
+  }\n\
+});\n\
+\n\
+app.get('/api/transactions', async (req, res) => {\n\
+  try {\n\
+    if (!supabase) {\n\
+      throw new Error('Supabase client not available');\n\
+    }\n\
+    // Implement your transactions logic here\n\
+    res.json({ success: true, transactions: [] });\n\
+  } catch (error) {\n\
+    console.error('Error in transactions endpoint:', error);\n\
+    res.status(500).json({ success: false, error: error.message });\n\
+  }\n\
+});\n\
+\n\
+// Start the server\n\
+console.log(\`Starting blockchain service on port \${PORT}\`);\n\
+app.listen(PORT, () => {\n\
+  console.log(\`Blockchain service running on port \${PORT}\`);\n\
+});\n" > src/server.cjs
+
+EXPOSE 8080
+
+# Use the CommonJS version of the server
+CMD ["node", "src/server.cjs"]

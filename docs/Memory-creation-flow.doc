@@ -1,0 +1,4 @@
+Files are uploaded from the frontend to the memory service
+Memory service forwards files to the IPFS service
+IPFS service uploads to Pinata and returns the hash and URL
+Memory service successfully saves the complete record to Supabase

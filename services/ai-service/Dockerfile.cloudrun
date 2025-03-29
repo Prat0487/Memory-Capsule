@@ -1,0 +1,64 @@
+FROM node:18
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the application
+COPY . .
+
+# Create required directories
+RUN mkdir -p /app/temp /app/config
+
+# Create a new server.cjs file with dynamic imports
+RUN echo "// CommonJS wrapper for ES Module server \n\
+const express = require('express'); \n\
+const cors = require('cors'); \n\
+const app = express(); \n\
+\n\
+app.use(cors()); \n\
+app.use(express.json()); \n\
+\n\
+// Define PORT \n\
+const PORT = process.env.PORT || 3003; \n\
+\n\
+// Basic health check endpoint \n\
+app.get('/health', (req, res) => { \n\
+  res.status(200).send('OK'); \n\
+}); \n\
+\n\
+// Handle narrative generation \n\
+app.post('/api/generate-narrative', async (req, res) => { \n\
+  try { \n\
+    const { description } = req.body; \n\
+    if (!description) { \n\
+      return res.status(400).json({ error: 'Description is required' }); \n\
+    } \n\
+    \n\
+    // Dynamically import the ES module \n\
+    const narrativeModule = await import('./functions/narrative-generator.js'); \n\
+    const narrative = await narrativeModule.generateNarrative(description); \n\
+    \n\
+    res.json({ narrative }); \n\
+  } catch (error) { \n\
+    console.error('Error generating narrative:', error); \n\
+    res.status(500).json({ error: 'Failed to generate narrative' }); \n\
+  } \n\
+}); \n\
+\n\
+// Start the server \n\
+app.listen(PORT, () => { \n\
+  console.log(\`AI service running on port \${PORT}\`); \n\
+}); \n" > src/server.cjs
+
+# Set environment variables
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
+EXPOSE 8080
+
+# Use server.cjs instead of server.js
+CMD ["node", "src/server.cjs"]
