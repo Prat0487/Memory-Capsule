@@ -12,13 +12,11 @@ services:
     build: ./services/frontend
     container_name: frontend
     ports:
-      - "3006:80"  # Map container port 80 to host port 3006
+      - "3006:3006"  # Map container port 80 to host port 3006
     environment:
       - PORT=3006  # Set port for local development
       - VITE_API_URL=http://memory-service:3000
       - VITE_AUTH_URL=http://auth-service:3001
-      - MEMORY_SERVICE_URL=http://memory-service:3000
-      - AUTH_SERVICE_URL=http://auth-service:3004
     depends_on:
       - memory-service
       - auth-service
@@ -38,9 +36,6 @@ services:
       - PORT=3000
       - SUPABASE_URL=https://lsijhlxvtztpjdvyjnwl.supabase.co
       - SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI
-      - AI_SERVICE_URL=http://ai-service:3001
-      - IPFS_SERVICE_URL=http://ipfs-service:3002
-      - BLOCKCHAIN_SERVICE_URL=http://blockchain-service:3003
       - REDIS_URL=redis://redis:6379
     depends_on:
       - ipfs-service
@@ -76,7 +71,6 @@ services:
     container_name: ai-service
     ports:
       - "3003:3003"
-      - "3005:3001"
     volumes:
       - ./services/ai-service/vertex-ai-key.json:/app/config/google-credentials.json:ro
       - ai-enhanced-images:/app/public/enhanced-images
