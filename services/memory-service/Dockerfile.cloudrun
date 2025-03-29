@@ -1,0 +1,44 @@
+FROM node:18
+
+WORKDIR /app
+
+# Copy package.json and package-lock.json
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the application
+COPY . .
+
+# Create a CommonJS version of the server if needed
+RUN if [ -f src/server.js ]; then \
+      cp src/server.js src/server.cjs; \
+    elif [ -f src/index.js ]; then \
+      cp src/index.js src/server.cjs; \
+    else \
+      echo "No server.js or index.js found"; \
+      exit 1; \
+    fi
+
+# Update the PORT variable to use environment variable
+RUN sed -i 's/const PORT = [0-9]\+/const PORT = process.env.PORT || 8080/' src/server.cjs || echo "No hardcoded port found, may already be using PORT env var"
+
+# Fix any ES module issues by converting to CommonJS if needed
+RUN sed -i 's/export const/module.exports./' src/server.cjs || echo "No exports to convert"
+RUN sed -i 's/import {/const {/' src/server.cjs || echo "No imports to convert"
+RUN sed -i 's/} from/} = require(/' src/server.cjs || echo "No imports to convert"
+RUN sed -i 's/import /const /' src/server.cjs || echo "No imports to convert"
+RUN sed -i 's/ from / = require(/g' src/server.cjs || echo "No imports to convert"
+RUN sed -i 's/;$/);/g' src/server.cjs || echo "No import statements to fix"
+
+# Expose Cloud Run port
+EXPOSE 8080
+
+# Set environment variables
+ENV PORT=8080
+ENV SUPABASE_URL=https://lsijhlxvtztpjdvyjnwl.supabase.co
+ENV SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI
+
+# Use the CommonJS version of the server
+CMD ["node", "src/server.cjs"]
