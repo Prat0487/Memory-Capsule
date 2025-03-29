@@ -2,8 +2,9 @@ import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
 import multer from 'multer';
-import { createClient } from '@supabase/supabase-js';
+import supabase from './config/supabaseClient.js';
 import fetch from 'node-fetch';
+import memoriesRouter from './routes/memories.js';
 
 // For Node.js versions that don't have global fetch
 global.fetch = fetch;
@@ -14,21 +15,93 @@ const PORT = process.env.PORT || 3000;
 // Configure multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Supabase initialization with custom fetch
-const supabaseUrl = 'https://lsijhlxvtztpjdvyjnwl.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI';
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: false
-  },
-  global: {
-    fetch: fetch
-  }
-});
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Routes
+app.use('/api', memoriesRouter); // CRITICAL: This registers all routes
+
+// Define the enhancement function directly in index.js
+const enhanceMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash, description } = req.body;
+    
+    console.log(`Enhancing memory ${memoryId} with hash ${ipfsHash}`);
+    
+    if (!memoryId || !ipfsHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'Memory ID and IPFS hash are required'
+      });
+    }
+    
+    // Call AI service for enhancement
+    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+      ipfsHash,
+      description: description || ''
+    });
+    
+    console.log('AI service response:', JSON.stringify(aiResponse.data, null, 2));
+    
+    // Extract enhanced hash
+    const enhancedHash = aiResponse.data.ipfsHash; // <-- This field name should match what AI service returns
+    
+    if (!enhancedHash) {
+      return res.status(400).json({
+        success: false, 
+        message: 'No enhanced hash returned'
+      });
+    }
+    
+    // Prepare enhanced image URL
+    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+    
+    // Update the database with enhanced image info
+    const { data, error } = await supabase
+      .from('memories')
+      .update({
+        enhanced_image_hash: enhancedHash,
+        enhanced_image_url: enhancedUrl,
+        is_local_enhancement: false,
+        updated_at: new Date()
+      })
+      .eq('id', memoryId)
+      .select();
+    
+    if (error) {
+      console.error('Database update error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update memory with enhanced image'
+      });
+    }
+    
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Memory not found'
+      });
+    }
+    
+    console.log('Memory enhanced successfully:', data[0]);
+    
+    return res.status(200).json({
+      success: true,
+      memory: data[0]
+    });
+  } catch (error) {
+    console.error('Error enhancing memory image:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+};
+
+// Now this will work - the function is defined
+app.post('/api/enhance-memory-image', enhanceMemoryImage);
 
 app.post('/memories/create', upload.array('files'), async (req, res) => {
   try {
