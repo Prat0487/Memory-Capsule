@@ -23,85 +23,11 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api', memoriesRouter); // CRITICAL: This registers all routes
 
-// Define the enhancement function directly in index.js
-const enhanceMemoryImage = async (req, res) => {
-  try {
-    const { memoryId, ipfsHash, description } = req.body;
-    
-    console.log(`Enhancing memory ${memoryId} with hash ${ipfsHash}`);
-    
-    if (!memoryId || !ipfsHash) {
-      return res.status(400).json({
-        success: false,
-        message: 'Memory ID and IPFS hash are required'
-      });
-    }
-    
-    // Call AI service for enhancement
-    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
-      ipfsHash,
-      description: description || ''
-    });
-    
-    console.log('AI service response:', JSON.stringify(aiResponse.data, null, 2));
-    
-    // Extract enhanced hash
-    const enhancedHash = aiResponse.data.ipfsHash; // <-- This field name should match what AI service returns
-    
-    if (!enhancedHash) {
-      return res.status(400).json({
-        success: false, 
-        message: 'No enhanced hash returned'
-      });
-    }
-    
-    // Prepare enhanced image URL
-    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
-    
-    // Update the database with enhanced image info
-    const { data, error } = await supabase
-      .from('memories')
-      .update({
-        enhanced_image_hash: enhancedHash,
-        enhanced_image_url: enhancedUrl,
-        is_local_enhancement: false,
-        updated_at: new Date()
-      })
-      .eq('id', memoryId)
-      .select();
-    
-    if (error) {
-      console.error('Database update error:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Failed to update memory with enhanced image'
-      });
-    }
-    
-    if (!data || data.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Memory not found'
-      });
-    }
-    
-    console.log('Memory enhanced successfully:', data[0]);
-    
-    return res.status(200).json({
-      success: true,
-      memory: data[0]
-    });
-  } catch (error) {
-    console.error('Error enhancing memory image:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Internal server error'
-    });
-  }
-};
+// Import the enhancement function
+import { enhanceImage } from './controllers/imageEnhancement.js';
 
-// Now this will work - the function is defined
-app.post('/api/enhance-memory-image', enhanceMemoryImage);
+// Use the imported function instead
+app.post('/api/enhance-memory-image', enhanceImage);
 
 app.post('/memories/create', upload.array('files'), async (req, res) => {
   try {
@@ -213,34 +139,39 @@ app.post('/memories/create', upload.array('files'), async (req, res) => {
             const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
               description,
               ipfsHash
-            }, { timeout: 60000 }); // Increase timeout for image processing
+            }, { timeout: 60000 });
             
-            if (aiResponse.data.success && 
-                aiResponse.data.enhancedImageHash && 
-                aiResponse.data.enhancedImageHash !== ipfsHash) {
-              
-              console.log(`Updating memory ${memoryId} with enhanced image`);
-              
-              // Update the memory with the enhanced image hash
-              const { data, error } = await supabase
-                .from('memories')
-                .update({ 
-                  ipfsHash: aiResponse.data.enhancedImageHash,
-                  url: `https://gateway.pinata.cloud/ipfs/${aiResponse.data.enhancedImageHash}`
-                })
-                .eq('id', memoryId);
-              
-              if (error) {
-                console.error('Error updating memory with enhanced image:', error);
-                return false;
-              }
-              
-              console.log(`Successfully updated memory ${memoryId} with enhanced image`);
-              return true;
+            console.log('AI service full response:', JSON.stringify(aiResponse.data));
+            
+            // Extract enhanced hash with fallbacks
+            const enhancedHash = aiResponse.data.enhancedImageHash || aiResponse.data.ipfsHash;
+            const isLocalStorage = aiResponse.data.isLocalStorage === true;
+
+            // Use appropriate URL based on storage type
+            let enhancedUrl;
+            if (isLocalStorage) {
+              enhancedUrl = aiResponse.data.enhancedImageUrl;
             } else {
-              console.log('No enhancement performed or same image returned');
+              enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+            }
+
+            // Update database (without updated_at)
+            await supabase
+              .from('memories')
+              .update({
+                enhanced_image_hash: enhancedHash,
+                enhanced_image_url: enhancedUrl,
+                is_local_enhancement: isLocalStorage
+              })
+              .eq('id', memoryId);
+            
+            if (error) {
+              console.error('Error updating memory with enhanced image:', error);
               return false;
             }
+            
+            console.log(`Successfully updated memory ${memoryId} with enhanced image`);
+            return true;
           } catch (error) {
             console.error('Background image enhancement error:', error);
             return false;
@@ -316,6 +247,55 @@ const getMemories = async (address) => {
     throw error;
   }
 };
+
+// Add this test endpoint
+app.get('/test-ai-connection', async (req, res) => {
+  try {
+    console.log('[DEBUG] Testing AI service connection...');
+    const response = await axios.get('http://ai-service:3003/health');
+    console.log('[DEBUG] AI service reachable:', response.data);
+    res.json({ success: true, aiServiceResponse: response.data });
+  } catch (error) {
+    console.error('[DEBUG] AI service connection test failed:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.response ? error.response.data : 'No response details'
+    });
+  }
+});
+
+app.get('/test-db-update/:memoryId', async (req, res) => {
+  try {
+    const { memoryId } = req.params;
+    console.log(`[DEBUG] Testing database update for memory ${memoryId}`);
+    
+    const testHash = `test-hash-${Date.now()}`;
+    const testUrl = `https://gateway.pinata.cloud/ipfs/${testHash}`;
+    
+    const { data, error } = await supabase
+      .from('memories')
+      .update({
+        enhanced_image_hash: testHash,
+        enhanced_image_url: testUrl,
+        is_local_enhancement: false,
+        updated_at: new Date()
+      })
+      .eq('id', memoryId)
+      .select();
+    
+    if (error) {
+      console.error('[DEBUG] Database update error:', error);
+      return res.status(500).json({ success: false, error });
+    }
+    
+    console.log('[DEBUG] Database update result:', data);
+    res.json({ success: true, updatedMemory: data });
+  } catch (error) {
+    console.error('[DEBUG] Test database update failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // Start server
 app.listen(PORT, () => {

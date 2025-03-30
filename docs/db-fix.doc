@@ -1,0 +1,3236 @@
+The error Cannot POST /api/enhance-memory-image indicates that this endpoint isn't registered in your Express application. Based on the codebase context provided, we need to investigate how your routes are structured.
+
+Identifying the Correct Endpoint
+Looking at your codebase:
+
+In services\memory-service\src\routes\memories.js, you have an updateMemoryImage function, but I don't see an explicit enhanceMemoryImage endpoint.
+
+Your route structure might be using a different path format (e.g., without the /api prefix, or using a different naming convention).
+
+Solutions
+1. First, check existing endpoints:
+curl -X GET http://localhost:3000/
+
+Copy
+
+
+Send command to Terminal
+This might return a list of available routes or at least confirm the server is running.
+
+2. Check if there's an existing enhancement endpoint with a different name:
+curl -X POST http://localhost:3000/memories/enhance \
+  -H "Content-Type: application/json" \
+  -d '{"memoryId": 165, "ipfsHash": "bafybeihaneymzvzamsisabsvnkfysqoxl6dskerr43nt7nqgdedqkxzfdu", "description": "tttttttttttttttttttt"}'
+
+Copy
+
+
+Send command to Terminal
+OR
+
+curl -X POST http://localhost:3000/enhance-image \
+  -H "Content-Type: application/json" \
+  -d '{"memoryId": 165, "ipfsHash": "bafybeihaneymzvzamsisabsvnkfysqoxl6dskerr43nt7nqgdedqkxzfdu", "description": "tttttttttttttttttttt"}'
+
+Copy
+
+
+Send command to Terminal
+3. Implement the enhancement endpoint:
+Add this to services\memory-service\src\routes\memories.js:
+// Add the enhancement function
+const enhanceMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash, description } = req.body;
+    
+    console.log(`Enhancing memory: ${memoryId}, hash: ${ipfsHash}`);
+    
+    // Call AI service for enhancement
+    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+      ipfsHash,
+      description
+    });
+    
+    console.log('AI response:', aiResponse.data);
+    
+    // Get enhanced hash
+    const enhancedHash = aiResponse.data.enhancedIpfsHash;
+    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+    
+    // Update database
+    const result = await db.query(
+      `UPDATE memories 
+       SET enhanced_image_hash = $1, 
+           enhanced_image_url = $2,
+           is_local_enhancement = false,
+           updated_at = NOW() 
+       WHERE id = $3 
+       RETURNING *`,
+      [enhancedHash, enhancedUrl, memoryId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Memory not found' });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      memory: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Enhancement error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Ensure it's exported with your router
+router.post('/enhance-memory-image', enhanceMemoryImage);
+
+Copy
+
+
+services\memory-service\src\routes\memories.js
+Make sure your router is correctly exported and registered in the main app file:
+import express from 'express';
+import memoriesRouter from './routes/memories.js';
+
+const app = express();
+app.use(express.json());
+
+// Register routes - make sure this matches your setup
+app.use('/api', memoriesRouter);
+// OR if you don't use the /api prefix:
+// app.use('/', memoriesRouter);
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Memory service running on port ${PORT}`);
+});
+
+Copy
+
+
+services\memory-service\src\index.js
+After making these changes, restart your memory service:
+
+docker-compose restart memory-service
+
+Copy
+
+
+Send command to Terminal
+The underlying issue is that the enhancement endpoint isn't implemented or registered in your Express application. Adding and properly registering this endpoint will resolve the "Cannot POST" error.
+
+Node.js v18.20.8
+
+2025-03-30 00:38:49 file:///app/src/index.js:34
+
+2025-03-30 00:38:49 app.use('/api', memoriesRouter); // CRITICAL: This registers all routes
+
+2025-03-30 00:38:49                 ^
+
+2025-03-30 00:38:49 
+
+2025-03-30 00:38:49 ReferenceError: memoriesRouter is not defined
+
+2025-03-30 00:38:49     at file:///app/src/index.js:34:17
+
+2025-03-30 00:38:49     at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+
+2025-03-30 00:38:49     at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+
+2025-03-30 00:38:49     at async loadESM (node:internal/process/esm_loader:34:7)
+
+2025-03-30 00:38:49     at async handleMainPromise (node:internal/modules/run_main:106:12)
+
+2025-03-30 00:38:49 
+
+2025-03-30 00:38:49 Node.js v18.20.8
+
+
+
+Context
+— none fetched
+
+Thought Process
+It seems that the memoriesRouter is not defined in the index.js file, which is causing a ReferenceError. This means either:
+
+The import statement for memoriesRouter is missing, or
+The router file isn't properly exporting the router, or
+The path to the router file is incorrect.
+Based on the error and the codebase context, we need to:
+
+Make sure the router is properly exported from memories.js
+Make sure it's properly imported in index.js
+From the original context, I can see we have services\memory-service\src\routes\memories.js that contains the route handlers, but it's not clear how the router is exported.
+
+In a standard Express setup, the router would be initialized and exported something like this:
+
+const express = require('express');
+const router = express.Router();
+
+// Define routes
+router.post('/update-memory-image', updateMemoryImage);
+
+module.exports = router;
+But for ESM syntax (which your error seems to indicate), it would be:
+
+import express from 'express';
+const router = express.Router();
+
+// Define routes
+router.post('/update-memory-image', updateMemoryImage);
+
+export default router;
+Then in the main app, you'd import it as:
+
+import memoriesRouter from './routes/memories.js';
+We need to fix both the export in the router file and the import in the main file.
+
+Fix for memoriesRouter is not defined Error
+The error shows you're trying to use memoriesRouter in your index.js file, but it's not defined. This means you're missing the import for your router.
+
+Step 1: Fix the Router Export in memories.js
+First, make sure your memories.js file properly exports a router:
+
+import express from 'express';
+import { db } from '../db.js'; // Import your database connection
+import axios from 'axios';
+
+// Create a router
+const router = express.Router();
+
+// Your existing updateMemoryImage function
+const updateMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash } = req.body;
+    
+    if (!memoryId || !ipfsHash) {
+      return res.status(400).json({
+         success: false,
+         message: 'Memory ID and IPFS hash are required'
+       });
+    }
+    
+    // Update the memory in the database
+    const result = await db.query(
+      'UPDATE memories SET ipfs_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [ipfsHash, memoryId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+         success: false,
+         message: 'Memory not found'
+       });
+    }
+    
+    res.status(200).json({
+      success: true,
+      memory: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating memory image:', error);
+    res.status(500).json({
+       success: false,
+       message: 'Failed to update memory image'
+     });
+  }
+};
+
+// Add enhance memory function
+const enhanceMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash, description } = req.body;
+    
+    console.log(`Enhancing memory: ${memoryId}, hash: ${ipfsHash}`);
+    
+    // Call AI service for enhancement
+    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+      ipfsHash,
+      description
+    });
+    
+    console.log('AI response:', aiResponse.data);
+    
+    // Get enhanced hash
+    const enhancedHash = aiResponse.data.enhancedIpfsHash;
+    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+    
+    // Update database
+    const result = await db.query(
+      `UPDATE memories 
+       SET enhanced_image_hash = $1, 
+           enhanced_image_url = $2,
+           is_local_enhancement = false,
+           updated_at = NOW() 
+       WHERE id = $3 
+       RETURNING *`,
+      [enhancedHash, enhancedUrl, memoryId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Memory not found' });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      memory: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Enhancement error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+// Register routes
+router.post('/update-memory-image', updateMemoryImage);
+router.post('/enhance-memory-image', enhanceMemoryImage);
+
+// Export the router
+export default router;
+
+Copy
+
+
+services\memory-service\src\routes\memories.js
+Step 2: Fix the Import in index.js
+Now, update your index.js file to correctly import the router:
+
+import express from 'express';
+import cors from 'cors';
+import memoriesRouter from './routes/memories.js'; // Make sure this path is correct
+
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Routes
+app.use('/api', memoriesRouter); // Now this will work
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Memory service running on port ${PORT}`);
+});
+
+Copy
+
+
+services\memory-service\src\index.js
+Step 3: Restart the Memory Service
+After making these changes, restart your memory service:
+
+docker-compose restart memory-service
+
+Copy
+
+
+Send command to Terminal
+Step 4: Test the Endpoint
+Now the endpoint should be available at:
+
+curl -X POST http://localhost:3000/api/enhance-memory-image \
+  -H "Content-Type: application/json" \
+  -d '{"memoryId": 165, "ipfsHash": "bafybeihaneymzvzamsisabsvnkfysqoxl6dskerr43nt7nqgdedqkxzfdu", "description": "tttttttttttttttttttt"}'
+
+Copy
+
+
+Send command to Terminal
+This will fix the ReferenceError: memoriesRouter is not defined error by properly defining and importing your router.
+
+Node.js v18.20.8
+
+2025-03-30 00:41:41 node:internal/errors:496
+
+2025-03-30 00:41:41     ErrorCaptureStackTrace(err);
+
+2025-03-30 00:41:41     ^
+
+2025-03-30 00:41:41 
+
+2025-03-30 00:41:41 Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/src/db.js' imported from /app/src/routes/memories.js
+
+2025-03-30 00:41:41     at new NodeError (node:internal/errors:405:5)
+
+2025-03-30 00:41:41     at finalizeResolution (node:internal/modules/esm/resolve:327:11)
+
+2025-03-30 00:41:41     at moduleResolve (node:internal/modules/esm/resolve:980:10)
+
+2025-03-30 00:41:41     at defaultResolve (node:internal/modules/esm/resolve:1206:11)
+
+2025-03-30 00:41:41     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:404:12)
+
+2025-03-30 00:41:41     at ModuleLoader.resolve (node:internal/modules/esm/loader:373:25)
+
+2025-03-30 00:41:41     at ModuleLoader.getModuleJob (node:internal/modules/esm/loader:250:38)
+
+2025-03-30 00:41:41     at ModuleWrap.<anonymous> (node:internal/modules/esm/module_job:76:39)
+
+2025-03-30 00:41:41     at link (node:internal/modules/esm/module_job:75:36) {
+
+2025-03-30 00:41:41   url: 'file:///app/src/db.js',
+
+2025-03-30 00:41:41   code: 'ERR_MODULE_NOT_FOUND'
+
+2025-03-30 00:41:41 }
+
+2025-03-30 00:41:41 
+
+2025-03-30 00:41:41 Node.js v18.20.8
+
+
+
+Context
+— none fetched
+
+Thought Process
+The error message indicates that Node.js cannot find the module '/app/src/db.js' which is being imported in '/app/src/routes/memories.js'. This means we need to create a db.js file in the src directory or fix the import path if the file exists in a different location.
+
+From the provided codebase context, I don't see a specific file for database configuration, but I can infer that there should be one based on the code snippets showing database queries.
+
+Let me check if there's any reference to database configuration in the codebase context provided:
+
+In services\blockchain-service\src\index.js, there's an import for supabase client: import { supabase } from './config/supabaseClient.js';
+In the docker-compose.yml, I see environment variables for the memory-service:
+environment:
+  - PORT=3000
+  - SUPABASE_URL=https://lsijhlxvtztpjdvyjnwl.supabase.co
+  - SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI
+This suggests that the memory-service is likely using Supabase as its database, similar to the blockchain-service. However, I don't see the specific structure of the db.js file in the memory-service.
+
+I'll need to create a db.js file that connects to Supabase using the environment variables provided in the docker-compose.yml.
+
+Fix for Cannot find module '/app/src/db.js' Error
+This error shows that your app can't find the database module that should be at /app/src/db.js. We need to create this file to establish the database connection.
+
+Step 1: Create the Database Connection File
+Create a new file at services/memory-service/src/db.js:
+
+import { createClient } from '@supabase/supabase-js';
+import pg from 'pg';
+
+// Environment variables (these match your docker-compose.yml)
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://lsijhlxvtztpjdvyjnwl.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI';
+
+// Initialize Supabase client
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// If you're using pg directly for some queries, set up a pool
+const pool = new pg.Pool({
+  connectionString: `postgres://postgres:postgres@${SUPABASE_URL.replace('https://', '')}:5432/postgres`,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+// Export the database query function
+export const db = {
+  query: (text, params) => pool.query(text, params),
+  getClient: () => pool.connect()
+};
+
+// Log successful connection
+pool.on('connect', () => {
+  console.log('Connected to the database');
+});
+
+// Log connection errors
+pool.on('error', (err) => {
+  console.error('Unexpected database error:', err);
+});
+
+// Export for use in other modules
+export default {
+  supabase,
+  db
+};
+
+Copy
+
+
+services\memory-service\src\db.js
+Step 2: Update package.json if needed
+Make sure your package.json has the required dependencies:
+
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    "pg": "^8.7.0"
+    // ... other dependencies
+  }
+}
+
+Copy
+
+
+services\memory-service\package.json
+Step 3: Modify the Import in memories.js
+Update the import in your memories.js file:
+
+// Change this line:
+import { db } from '../db.js';
+
+// To one of these, depending on your export structure:
+import { db } from '../db.js';
+// OR
+import db from '../db.js';
+const { query } = db;
+
+Copy
+
+
+services\memory-service\src\routes\memories.js
+Step 4: Rebuild the Container
+Since you've added new files, you should rebuild the memory-service container:
+
+docker-compose down memory-service
+docker-compose build memory-service
+docker-compose up -d memory-service
+
+Copy
+
+
+Send command to Terminal
+Alternative Approach
+If your memory service is already connecting to a database elsewhere in the codebase, you might just need to identify where that connection is defined and import from there.
+
+For example, if you have a /app/src/config/database.js file instead, you would update your import:
+
+// Change from
+import { db } from '../db.js';
+
+// To
+import { db } from '../config/database.js';
+
+Copy
+
+
+services\memory-service\src\routes\memories.js
+The key is to establish a database connection that matches how other parts of your application are accessing the database, and make sure the import path in memories.js correctly points to that module.
+
+Node.js v18.20.8
+
+2025-03-30 00:43:25 file:///app/src/index.js:38
+
+2025-03-30 00:43:25 app.post('/api/enhance-memory-image', enhanceMemoryImage);
+
+2025-03-30 00:43:25                                       ^
+
+2025-03-30 00:43:25 
+
+2025-03-30 00:43:25 ReferenceError: enhanceMemoryImage is not defined
+
+2025-03-30 00:43:25     at file:///app/src/index.js:38:39
+
+2025-03-30 00:43:25     at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+
+2025-03-30 00:43:25     at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+
+2025-03-30 00:43:25     at async loadESM (node:internal/process/esm_loader:34:7)
+
+2025-03-30 00:43:25     at async handleMainPromise (node:internal/modules/run_main:106:12)
+
+2025-03-30 00:43:25 
+
+2025-03-30 00:43:25 Node.js v18.20.8
+
+
+
+Context
+— none fetched
+
+Thought Process
+Now we're getting a different error: ReferenceError: enhanceMemoryImage is not defined. This indicates that we're trying to use the enhanceMemoryImage function in the index.js file without importing or defining it.
+
+Looking at the error, it appears that instead of using the router approach I suggested earlier, the code is trying to directly define the route in the index.js file:
+
+app.post('/api/enhance-memory-image', enhanceMemoryImage);
+To fix this, we have two options:
+
+Define the enhanceMemoryImage function directly in the index.js file.
+Import the function from another file where it's defined.
+I'll prepare a solution for both approaches, but based on the context, it seems like the direct approach might be simpler given the current state of the codebase.
+
+Fix for enhanceMemoryImage is not defined Error
+Your error shows you're trying to use a function enhanceMemoryImage in your index.js file, but it hasn't been defined or imported.
+
+Solution: Define the enhanceMemoryImage Function
+You have two options to fix this:
+
+Option 1: Define the function directly in index.js
+import express from 'express';
+import cors from 'cors';
+import axios from 'axios';
+import { supabase } from './config/supabaseClient.js'; // Adjust path if needed
+
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Define the enhancement function directly in index.js
+const enhanceMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash, description } = req.body;
+    
+    console.log(`Enhancing memory ${memoryId} with hash ${ipfsHash}`);
+    
+    if (!memoryId || !ipfsHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'Memory ID and IPFS hash are required'
+      });
+    }
+    
+    // Call AI service for enhancement
+    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+      ipfsHash,
+      description: description || ''
+    });
+    
+    console.log('AI service response:', JSON.stringify(aiResponse.data, null, 2));
+    
+    // Extract enhanced hash
+    const enhancedHash = aiResponse.data.enhancedIpfsHash || aiResponse.data.ipfsHash;
+    
+    if (!enhancedHash) {
+      return res.status(400).json({
+        success: false, 
+        message: 'No enhanced hash returned'
+      });
+    }
+    
+    // Prepare enhanced image URL
+    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+    
+    // Update the database with enhanced image info
+    const { data, error } = await supabase
+      .from('memories')
+      .update({
+        enhanced_image_hash: enhancedHash,
+        enhanced_image_url: enhancedUrl,
+        is_local_enhancement: false,
+        updated_at: new Date()
+      })
+      .eq('id', memoryId)
+      .select();
+    
+    if (error) {
+      console.error('Database update error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update memory with enhanced image'
+      });
+    }
+    
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Memory not found'
+      });
+    }
+    
+    console.log('Memory enhanced successfully:', data[0]);
+    
+    return res.status(200).json({
+      success: true,
+      memory: data[0]
+    });
+  } catch (error) {
+    console.error('Error enhancing memory image:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+};
+
+// Now this will work - the function is defined
+app.post('/api/enhance-memory-image', enhanceMemoryImage);
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Memory service running on port ${PORT}`);
+});
+
+Copy
+
+
+services\memory-service\src\index.js
+Option 2: Import from a separate file
+If you prefer to keep your code modular:
+
+Create a new file for the enhancement function:
+import axios from 'axios';
+import { supabase } from '../config/supabaseClient.js';
+
+export const enhanceMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash, description } = req.body;
+    
+    console.log(`Enhancing memory ${memoryId} with hash ${ipfsHash}`);
+    
+    if (!memoryId || !ipfsHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'Memory ID and IPFS hash are required'
+      });
+    }
+    
+    // Call AI service for enhancement
+    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+      ipfsHash,
+      description: description || ''
+    });
+    
+    console.log('AI service response:', JSON.stringify(aiResponse.data, null, 2));
+    
+    // Extract enhanced hash
+    const enhancedHash = aiResponse.data.enhancedIpfsHash || aiResponse.data.ipfsHash;
+    
+    if (!enhancedHash) {
+      return res.status(400).json({
+        success: false, 
+        message: 'No enhanced hash returned'
+      });
+    }
+    
+    // Prepare enhanced image URL
+    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+    
+    // Update the database with enhanced image info
+    const { data, error } = await supabase
+      .from('memories')
+      .update({
+        enhanced_image_hash: enhancedHash,
+        enhanced_image_url: enhancedUrl,
+        is_local_enhancement: false,
+        updated_at: new Date()
+      })
+      .eq('id', memoryId)
+      .select();
+    
+    if (error) {
+      console.error('Database update error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update memory with enhanced image'
+      });
+    }
+    
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Memory not found'
+      });
+    }
+    
+    console.log('Memory enhanced successfully:', data[0]);
+    
+    return res.status(200).json({
+      success: true,
+      memory: data[0]
+    });
+  } catch (error) {
+    console.error('Error enhancing memory image:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+};
+
+Copy
+
+
+services\memory-service\src\controllers\enhancement.js
+Then import and use it in your index.js:
+import express from 'express';
+import cors from 'cors';
+import { enhanceMemoryImage } from './controllers/enhancement.js';
+
+const app = express();
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// Import and use the function
+app.post('/api/enhance-memory-image', enhanceMemoryImage);
+
+// Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Memory service running on port ${PORT}`);
+});
+
+Copy
+
+
+services\memory-service\src\index.js
+For the quickest solution, I recommend Option 1. After making these changes, restart your memory service:
+
+docker-compose restart memory-service
+
+Copy
+
+
+Send command to Terminal
+This will resolve the "enhanceMemoryImage is not defined" error by properly defining the function before using it.
+
+Node.js v18.20.8
+
+2025-03-30 00:46:59 node:internal/errors:496
+
+2025-03-30 00:46:59     ErrorCaptureStackTrace(err);
+
+2025-03-30 00:46:59     ^
+
+2025-03-30 00:46:59 
+
+2025-03-30 00:46:59 Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/src/config/supabaseClient.js' imported from /app/src/index.js
+
+2025-03-30 00:46:59     at new NodeError (node:internal/errors:405:5)
+
+2025-03-30 00:46:59     at finalizeResolution (node:internal/modules/esm/resolve:327:11)
+
+2025-03-30 00:46:59     at moduleResolve (node:internal/modules/esm/resolve:980:10)
+
+2025-03-30 00:46:59     at defaultResolve (node:internal/modules/esm/resolve:1206:11)
+
+2025-03-30 00:46:59     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:404:12)
+
+2025-03-30 00:46:59     at ModuleLoader.resolve (node:internal/modules/esm/loader:373:25)
+
+2025-03-30 00:46:59     at ModuleLoader.getModuleJob (node:internal/modules/esm/loader:250:38)
+
+2025-03-30 00:46:59     at ModuleWrap.<anonymous> (node:internal/modules/esm/module_job:76:39)
+
+2025-03-30 00:46:59     at link (node:internal/modules/esm/module_job:75:36) {
+
+2025-03-30 00:46:59   url: 'file:///app/src/config/supabaseClient.js',
+
+2025-03-30 00:46:59   code: 'ERR_MODULE_NOT_FOUND'
+
+2025-03-30 00:46:59 }
+
+
+
+Context
+— none fetched
+
+Thought Process
+The error shows that Node.js cannot find the module '/app/src/config/supabaseClient.js' which is being imported in '/app/src/index.js'.
+
+Looking at the codebase context, we have some insights about the Supabase configuration:
+
+In the docker-compose.yml file, we see that memory-service has environment variables for Supabase:
+environment:
+  - PORT=3000
+  - SUPABASE_URL=https://lsijhlxvtztpjdvyjnwl.supabase.co
+  - SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI
+We need to create the 'supabaseClient.js' file in the '/app/src/config/' directory to establish the Supabase connection. From the codebase snippets, we can infer that it should initialize a Supabase client with the environment variables.
+
+We need to:
+
+Create the '/app/src/config/' directory if it doesn't exist
+Create a 'supabaseClient.js' file with the correct Supabase initialization
+Fix for Missing Supabase Client File
+You're getting an error because the file /app/src/config/supabaseClient.js doesn't exist, but it's being imported in your index.js file.
+
+Create the Supabase Client File
+Create the file at services/memory-service/src/config/supabaseClient.js:
+
+import { createClient } from '@supabase/supabase-js';
+
+// Get environment variables
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://lsijhlxvtztpjdvyjnwl.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzaWpobHh2dHp0cGpkdnlqbndsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MjkyNjMsImV4cCI6MjA1NjAwNTI2M30.cyoRUValV1tW4JpnW8A-5NPJ4luVjybhj8RjaZQ4_rI';
+
+// Initialize the Supabase client
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Export default for convenience
+export default supabase;
+
+// Log connection info for debugging
+console.log(`Supabase client initialized with URL: ${SUPABASE_URL}`);
+
+Copy
+
+
+services\memory-service\src\config\supabaseClient.js
+Make Sure Directory Structure Exists
+The error suggests the config directory might not exist. Create it if needed:
+
+mkdir -p services/memory-service/src/config
+
+Copy
+
+
+Send command to Terminal
+Update package.json
+Make sure your package.json has the required Supabase dependency:
+
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    // ...other dependencies
+  }
+}
+
+Copy
+
+
+services\memory-service\package.json
+Fix the Import in index.js
+Make sure your import statement in index.js is correct:
+
+// If you're using the named export
+import { supabase } from './config/supabaseClient.js';
+
+// OR if you're using the default export
+import supabase from './config/supabaseClient.js';
+
+Copy
+
+
+services\memory-service\src\index.js
+Rebuild the Service
+To ensure all files and dependencies are properly included:
+
+docker-compose down memory-service
+docker-compose build memory-service
+docker-compose up -d memory-service
+
+Copy
+
+
+Send command to Terminal
+This will create the missing Supabase client file that's required for your database operations, using the credentials from your docker-compose environment variables.
+
+> ai-service@1.0.0 dev
+
+2025-03-29 21:25:52 > nodemon src/index.js
+
+2025-03-29 21:25:52 
+
+2025-03-29 21:25:52 [nodemon] 3.1.9
+
+2025-03-29 21:25:52 [nodemon] to restart at any time, enter `rs`
+
+2025-03-29 21:25:52 [nodemon] watching path(s): *.*
+
+2025-03-29 21:25:52 [nodemon] watching extensions: js,mjs,cjs,json
+
+2025-03-29 21:25:52 [nodemon] starting `node src/index.js`
+
+2025-03-29 21:25:52 Starting server initialization
+
+2025-03-29 21:25:52 AI service running on port 3003
+
+2025-03-29 21:26:25 Generating narrative for: "yyyyyyyyyyyyyyyyyyyyyy..."
+
+2025-03-29 21:26:25 Enhancing image bafybeihhzuqbbz342jylw7oyussygpgutrwmuph3yk37dq2r57ji7npq4a based on description: yyyyyyyyyyyyyyyyyyyyyy
+
+2025-03-29 21:26:25 Downloading from https://dweb.link/ipfs/bafybeihhzuqbbz342jylw7oyussygpgutrwmuph3yk37dq2r57ji7npq4a (attempt 1/10)
+
+2025-03-29 21:26:25 Gateway https://dweb.link/ipfs/ success rate: 100.0%
+
+2025-03-29 21:26:25 Successfully downloaded from https://dweb.link/ipfs/ (999400 bytes)
+
+2025-03-29 21:26:25 Image download successful (999400 bytes)
+
+2025-03-29 21:26:25 Enhancing image with sharp
+
+2025-03-29 21:26:26 Image enhanced (1247590 bytes)
+
+2025-03-29 21:26:26 Enhanced image saved to /tmp/enhanced_1743263786839.jpg
+
+2025-03-29 21:26:26 Uploading to Pinata...
+
+2025-03-29 21:26:26 Uploading to Pinata...
+
+2025-03-29 21:26:31 DNS resolution error, will retry...
+
+2025-03-29 21:26:31 Retrying Pinata upload (attempt 2/5)...
+
+2025-03-29 21:26:33 Uploading to Pinata...
+
+2025-03-29 21:26:40 Upload successful, IPFS hash: bafybeidxcevgqcbvzbp3nlnxszq2q46ft7zgep43xu7on7ao2ynezg5fl4
+
+2025-03-29 21:26:40 Upload successful, IPFS hash: bafybeidxcevgqcbvzbp3nlnxszq2q46ft7zgep43xu7on7ao2ynezg5fl4
+
+2025-03-29 21:26:52 Saved gateway history to file
+
+2025-03-29 21:26:55 [nodemon] restarting due to changes...
+
+2025-03-29 21:26:55 SIGTERM signal received: closing HTTP server
+
+2025-03-29 21:26:55 HTTP server closed
+
+2025-03-29 21:26:55 SIGTERM signal received: closing HTTP server
+
+2025-03-29 21:26:55 HTTP server closed
+
+2025-03-29 21:26:55 Could not kill process on port 3001. No process running on port.
+
+2025-03-29 21:27:52 Saved gateway history to file
+
+2025-03-29 21:27:55 [nodemon] restarting due to changes...
+
+2025-03-29 21:27:55 SIGTERM signal received: closing HTTP server
+
+2025-03-29 21:27:55 HTTP server closed
+
+2025-03-29 21:27:55 SIGTERM signal received: closing HTTP server
+
+2025-03-29 21:27:55 HTTP server closed
+
+2025-03-29 21:27:55 Could not kill process on port 3001. No process running on port.
+
+
+
+Context
+— none fetched
+
+Thought Process
+Looking at the logs provided, I can see:
+
+The AI service is running successfully on port 3003
+It received a request to enhance an image with the IPFS hash bafybeihhzuqbbz342jylw7oyussygpgutrwmuph3yk37dq2r57ji7npq4a
+The service successfully downloaded the image (999400 bytes)
+It enhanced the image using sharp, resulting in a larger file (1247590 bytes)
+It saved the enhanced image to a temporary file /tmp/enhanced_1743263786839.jpg
+It uploaded the enhanced image to Pinata after a retry (DNS resolution error on first attempt)
+The upload was successful with a new IPFS hash: bafybeidxcevgqcbvzbp3nlnxszq2q46ft7zgep43xu7on7ao2ynezg5fl4
+There were some nodemon restarts and server closures at the end
+This log shows that the AI service is working correctly - it's enhancing images and uploading them to IPFS/Pinata. The process is completing successfully.
+
+The issue with the database not storing the enhanced image hash and URL is likely not related to the AI service itself, but rather with how the memory service processes the response from the AI service and updates the database.
+
+Based on the logs, the AI service is correctly returning the enhanced image hash. The problem must be in the memory service's handling of this response.
+
+AI Service Logs Analysis
+Looking at your AI service logs, I can confirm that the image enhancement is working correctly. Here's the process flow:
+
+Request received: The AI service got a request to enhance image bafybeihhzuqbbz342jylw7oyussygpgutrwmuph3yk37dq2r57ji7npq4a
+
+Download successful: Image downloaded (999400 bytes)
+
+Enhancement completed: Sharp successfully processed the image, resulting in a larger file (1247590 bytes)
+
+Upload successful: Enhanced image uploaded to Pinata with new hash: bafybeidxcevgqcbvzbp3nlnxszq2q46ft7zgep43xu7on7ao2ynezg5fl4
+
+Key Insight
+The AI service is working perfectly! The Enhanced IPFS hash is:
+
+bafybeidxcevgqcbvzbp3nlnxszq2q46ft7zgep43xu7on7ao2ynezg5fl4
+
+Copy
+
+
+The issue is that this hash isn't making it into your database. This confirms our diagnosis: the memory service is not correctly:
+
+Processing the response from the AI service
+Extracting the enhanced hash
+Or updating the database with the extracted hash
+Root Cause
+Based on these logs, we need to focus on the response format from your AI service. It appears the AI service returns the enhanced hash as:
+
+{
+  "ipfsHash": "bafybeidxcevgqcbvzbp3nlnxszq2q46ft7zgep43xu7on7ao2ynezg5fl4"
+}
+
+Copy
+
+
+But your memory service might be looking for it under a different field name like enhancedIpfsHash.
+
+Integration Fix
+In your memory service, ensure you're extracting the hash with the correct field name:
+
+// In your enhanceMemoryImage function
+const enhancedHash = aiResponse.data.ipfsHash; // <-- This field name should match what AI service returns
+
+Copy
+
+
+This confirms we're on the right track with our previous fixes. The database NULL values are due to a field name mismatch or response processing issue, not a problem with the AI enhancement itself.
+
+memory service logs -> Supabase client initialized with URL: https://lsijhlxvtztpjdvyjnwl.supabase.co
+
+2025-03-30 00:48:27 Memory service running on port 3000
+
+2025-03-30 00:49:31 Request fields: [Object: null prototype] {
+
+2025-03-30 00:49:31   title: '2222222',
+
+2025-03-30 00:49:31   description: '6666666666',
+
+2025-03-30 00:49:31   owner: '0x69592f057c1Fd4D1a82758D91acAf5D37d2639F8',
+
+2025-03-30 00:49:31   generateNarrative: 'true',
+
+2025-03-30 00:49:31   enhanceImage: 'true'
+
+2025-03-30 00:49:31 }
+
+2025-03-30 00:49:31 Uploaded files: 1
+
+2025-03-30 00:49:35 Inserting into Supabase: {
+
+2025-03-30 00:49:35   title: '2222222',
+
+2025-03-30 00:49:35   description: '6666666666',
+
+2025-03-30 00:49:35   created_at: '2025-03-29T19:19:35.218Z',
+
+2025-03-30 00:49:35   ipfsHash: 'bafybeiatojqglwraglasjn2bzscrepozsuzwwekticafycsm67atokt4cy',
+
+2025-03-30 00:49:35   url: 'https://gateway.pinata.cloud/ipfs/bafybeiatojqglwraglasjn2bzscrepozsuzwwekticafycsm67atokt4cy',
+
+2025-03-30 00:49:35   ownerAddress: '0x69592f057c1Fd4D1a82758D91acAf5D37d2639F8',
+
+2025-03-30 00:49:35   narrative: '',
+
+2025-03-30 00:49:35   type: 'standard',
+
+2025-03-30 00:49:35   sharecount: 0
+
+2025-03-30 00:49:35 }
+
+2025-03-30 00:49:35 Enhancing image for memory 166
+
+2025-03-30 00:49:36 Background image enhancement error: AxiosError: connect ECONNREFUSED 172.20.0.7:3003
+
+2025-03-30 00:49:36     at AxiosError.from (file:///app/node_modules/axios/lib/core/AxiosError.js:92:14)
+
+2025-03-30 00:49:36     at RedirectableRequest.handleRequestError (file:///app/node_modules/axios/lib/adapters/http.js:620:25)
+
+2025-03-30 00:49:36     at RedirectableRequest.emit (node:events:529:35)
+
+2025-03-30 00:49:36     at eventHandlers.<computed> (/app/node_modules/follow-redirects/index.js:49:24)
+
+2025-03-30 00:49:36     at ClientRequest.emit (node:events:517:28)
+
+2025-03-30 00:49:36     at Socket.socketErrorListener (node:_http_client:501:9)
+
+2025-03-30 00:49:36     at Socket.emit (node:events:517:28)
+
+2025-03-30 00:49:36     at emitErrorNT (node:internal/streams/destroy:151:8)
+
+2025-03-30 00:49:36     at emitErrorCloseNT (node:internal/streams/destroy:116:3)
+
+2025-03-30 00:49:36     at process.processTicksAndRejections (node:internal/process/task_queues:82:21)
+
+2025-03-30 00:49:36     at Axios.request (file:///app/node_modules/axios/lib/core/Axios.js:45:41)
+
+2025-03-30 00:49:36     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+
+2025-03-30 00:49:36     at async enhanceImageWithAI (file:///app/src/index.js:213:32)
+
+2025-03-30 00:49:36     at async Timeout._onTimeout (file:///app/src/index.js:250:9) {
+
+2025-03-30 00:49:36   port: 3003,
+
+2025-03-30 00:49:36   address: '172.20.0.7',
+
+2025-03-30 00:49:36   syscall: 'connect',
+
+2025-03-30 00:49:36   code: 'ECONNREFUSED',
+
+2025-03-30 00:49:36   errno: -111,
+
+2025-03-30 00:49:36   config: {
+
+2025-03-30 00:49:36     transitional: {
+
+2025-03-30 00:49:36       silentJSONParsing: true,
+
+2025-03-30 00:49:36       forcedJSONParsing: true,
+
+2025-03-30 00:49:36       clarifyTimeoutError: false
+
+2025-03-30 00:49:36     },
+
+2025-03-30 00:49:36     adapter: [ 'xhr', 'http', 'fetch' ],
+
+2025-03-30 00:49:36     transformRequest: [ [Function: transformRequest] ],
+
+2025-03-30 00:49:36     transformResponse: [ [Function: transformResponse] ],
+
+2025-03-30 00:49:36     timeout: 60000,
+
+2025-03-30 00:49:36     xsrfCookieName: 'XSRF-TOKEN',
+
+2025-03-30 00:49:36     xsrfHeaderName: 'X-XSRF-TOKEN',
+
+2025-03-30 00:49:36     maxContentLength: -1,
+
+2025-03-30 00:49:36     maxBodyLength: -1,
+
+2025-03-30 00:49:36     env: { FormData: [Function [FormData]], Blob: [class Blob] },
+
+2025-03-30 00:49:36     validateStatus: [Function: validateStatus],
+
+2025-03-30 00:49:36     headers: Object [AxiosHeaders] {
+
+2025-03-30 00:49:36       Accept: 'application/json, text/plain, */*',
+
+2025-03-30 00:49:36       'Content-Type': 'application/json',
+
+2025-03-30 00:49:36       'User-Agent': 'axios/1.8.4',
+
+2025-03-30 00:49:36       'Content-Length': '101',
+
+2025-03-30 00:49:36       'Accept-Encoding': 'gzip, compress, deflate, br'
+
+2025-03-30 00:49:36     },
+
+2025-03-30 00:49:36     method: 'post',
+
+2025-03-30 00:49:36     url: 'http://ai-service:3003/api/enhance-image',
+
+2025-03-30 00:49:36     data: '{"description":"6666666666","ipfsHash":"bafybeiatojqglwraglasjn2bzscrepozsuzwwekticafycsm67atokt4cy"}',
+
+2025-03-30 00:49:36     allowAbsoluteUrls: true
+
+2025-03-30 00:49:36   },
+
+2025-03-30 00:49:36   request: <ref *1> Writable {
+
+2025-03-30 00:49:36     _writableState: WritableState {
+
+2025-03-30 00:49:36       objectMode: false,
+
+2025-03-30 00:49:36       highWaterMark: 16384,
+
+2025-03-30 00:49:36       finalCalled: false,
+
+2025-03-30 00:49:36       needDrain: false,
+
+2025-03-30 00:49:36       ending: false,
+
+2025-03-30 00:49:36       ended: false,
+
+2025-03-30 00:49:36       finished: false,
+
+2025-03-30 00:49:36       destroyed: false,
+
+2025-03-30 00:49:36       decodeStrings: true,
+
+2025-03-30 00:49:36       defaultEncoding: 'utf8',
+
+2025-03-30 00:49:36       length: 0,
+
+2025-03-30 00:49:36       writing: false,
+
+2025-03-30 00:49:36       corked: 0,
+
+2025-03-30 00:49:36       sync: true,
+
+2025-03-30 00:49:36       bufferProcessing: false,
+
+2025-03-30 00:49:36       onwrite: [Function: bound onwrite],
+
+2025-03-30 00:49:36       writecb: null,
+
+2025-03-30 00:49:36       writelen: 0,
+
+2025-03-30 00:49:36       afterWriteTickInfo: null,
+
+2025-03-30 00:49:36       buffered: [],
+
+2025-03-30 00:49:36       bufferedIndex: 0,
+
+2025-03-30 00:49:36       allBuffers: true,
+
+2025-03-30 00:49:36       allNoop: true,
+
+2025-03-30 00:49:36       pendingcb: 0,
+
+2025-03-30 00:49:36       constructed: true,
+
+2025-03-30 00:49:36       prefinished: false,
+
+2025-03-30 00:49:36       errorEmitted: false,
+
+2025-03-30 00:49:36       emitClose: true,
+
+2025-03-30 00:49:36       autoDestroy: true,
+
+2025-03-30 00:49:36       errored: null,
+
+2025-03-30 00:49:36       closed: false,
+
+2025-03-30 00:49:36       closeEmitted: false,
+
+2025-03-30 00:49:36       [Symbol(kOnFinished)]: []
+
+2025-03-30 00:49:36     },
+
+2025-03-30 00:49:36     _events: [Object: null prototype] {
+
+2025-03-30 00:49:36       response: [Function: handleResponse],
+
+2025-03-30 00:49:36       error: [Function: handleRequestError],
+
+2025-03-30 00:49:36       socket: [Array]
+
+2025-03-30 00:49:36     },
+
+2025-03-30 00:49:36     _eventsCount: 3,
+
+2025-03-30 00:49:36     _maxListeners: undefined,
+
+2025-03-30 00:49:36     _options: {
+
+2025-03-30 00:49:36       maxRedirects: 21,
+
+2025-03-30 00:49:36       maxBodyLength: Infinity,
+
+2025-03-30 00:49:36       protocol: 'http:',
+
+2025-03-30 00:49:36       path: '/api/enhance-image',
+
+2025-03-30 00:49:36       method: 'POST',
+
+2025-03-30 00:49:36       headers: [Object: null prototype],
+
+2025-03-30 00:49:36       agents: [Object],
+
+2025-03-30 00:49:36       auth: undefined,
+
+2025-03-30 00:49:36       family: undefined,
+
+2025-03-30 00:49:36       beforeRedirect: [Function: dispatchBeforeRedirect],
+
+2025-03-30 00:49:36       beforeRedirects: [Object],
+
+2025-03-30 00:49:36       hostname: 'ai-service',
+
+2025-03-30 00:49:36       port: '3003',
+
+2025-03-30 00:49:36       agent: undefined,
+
+2025-03-30 00:49:36       nativeProtocols: [Object],
+
+2025-03-30 00:49:36       pathname: '/api/enhance-image'
+
+2025-03-30 00:49:36     },
+
+2025-03-30 00:49:36     _ended: false,
+
+2025-03-30 00:49:36     _ending: true,
+
+2025-03-30 00:49:36     _redirectCount: 0,
+
+2025-03-30 00:49:36     _redirects: [],
+
+2025-03-30 00:49:36     _requestBodyLength: 101,
+
+2025-03-30 00:49:36     _requestBodyBuffers: [ [Object] ],
+
+2025-03-30 00:49:36     _onNativeResponse: [Function (anonymous)],
+
+2025-03-30 00:49:36     _currentRequest: ClientRequest {
+
+2025-03-30 00:49:36       _events: [Object: null prototype],
+
+2025-03-30 00:49:36       _eventsCount: 7,
+
+2025-03-30 00:49:36       _maxListeners: undefined,
+
+2025-03-30 00:49:36       outputData: [],
+
+2025-03-30 00:49:36       outputSize: 0,
+
+2025-03-30 00:49:36       writable: true,
+
+2025-03-30 00:49:36       destroyed: false,
+
+2025-03-30 00:49:36       _last: true,
+
+2025-03-30 00:49:36       chunkedEncoding: false,
+
+2025-03-30 00:49:36       shouldKeepAlive: false,
+
+2025-03-30 00:49:36       maxRequestsOnConnectionReached: false,
+
+2025-03-30 00:49:36       _defaultKeepAlive: true,
+
+2025-03-30 00:49:36       useChunkedEncodingByDefault: true,
+
+2025-03-30 00:49:36       sendDate: false,
+
+2025-03-30 00:49:36       _removedConnection: false,
+
+2025-03-30 00:49:36       _removedContLen: false,
+
+2025-03-30 00:49:36       _removedTE: false,
+
+2025-03-30 00:49:36       strictContentLength: false,
+
+2025-03-30 00:49:36       _contentLength: '101',
+
+2025-03-30 00:49:36       _hasBody: true,
+
+2025-03-30 00:49:36       _trailer: '',
+
+2025-03-30 00:49:36       finished: false,
+
+2025-03-30 00:49:36       _headerSent: true,
+
+2025-03-30 00:49:36       _closed: false,
+
+2025-03-30 00:49:36       socket: [Socket],
+
+2025-03-30 00:49:36       _header: 'POST /api/enhance-image HTTP/1.1\r\n' +
+
+2025-03-30 00:49:36         'Accept: application/json, text/plain, */*\r\n' +
+
+2025-03-30 00:49:36         'Content-Type: application/json\r\n' +
+
+2025-03-30 00:49:36         'User-Agent: axios/1.8.4\r\n' +
+
+2025-03-30 00:49:36         'Content-Length: 101\r\n' +
+
+2025-03-30 00:49:36         'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+
+2025-03-30 00:49:36         'Host: ai-service:3003\r\n' +
+
+2025-03-30 00:49:36         'Connection: close\r\n' +
+
+2025-03-30 00:49:36         '\r\n',
+
+2025-03-30 00:49:36       _keepAliveTimeout: 0,
+
+2025-03-30 00:49:36       _onPendingData: [Function: nop],
+
+2025-03-30 00:49:36       agent: [Agent],
+
+2025-03-30 00:49:36       socketPath: undefined,
+
+2025-03-30 00:49:36       method: 'POST',
+
+2025-03-30 00:49:36       maxHeaderSize: undefined,
+
+2025-03-30 00:49:36       insecureHTTPParser: undefined,
+
+2025-03-30 00:49:36       joinDuplicateHeaders: undefined,
+
+2025-03-30 00:49:36       path: '/api/enhance-image',
+
+2025-03-30 00:49:36       _ended: false,
+
+2025-03-30 00:49:36       res: null,
+
+2025-03-30 00:49:36       aborted: false,
+
+2025-03-30 00:49:36       timeoutCb: null,
+
+2025-03-30 00:49:36       upgradeOrConnect: false,
+
+2025-03-30 00:49:36       parser: null,
+
+2025-03-30 00:49:36       maxHeadersCount: null,
+
+2025-03-30 00:49:36       reusedSocket: false,
+
+2025-03-30 00:49:36       host: 'ai-service',
+
+2025-03-30 00:49:36       protocol: 'http:',
+
+2025-03-30 00:49:36       _redirectable: [Circular *1],
+
+2025-03-30 00:49:36       [Symbol(kCapture)]: false,
+
+2025-03-30 00:49:36       [Symbol(kBytesWritten)]: 0,
+
+2025-03-30 00:49:36       [Symbol(kNeedDrain)]: false,
+
+2025-03-30 00:49:36       [Symbol(corked)]: 0,
+
+2025-03-30 00:49:36       [Symbol(kOutHeaders)]: [Object: null prototype],
+
+2025-03-30 00:49:36       [Symbol(errored)]: null,
+
+2025-03-30 00:49:36       [Symbol(kHighWaterMark)]: 16384,
+
+2025-03-30 00:49:36       [Symbol(kRejectNonStandardBodyWrites)]: false,
+
+2025-03-30 00:49:36       [Symbol(kUniqueHeaders)]: null
+
+2025-03-30 00:49:36     },
+
+2025-03-30 00:49:36     _currentUrl: 'http://ai-service:3003/api/enhance-image',
+
+2025-03-30 00:49:36     _timeout: null,
+
+2025-03-30 00:49:36     [Symbol(kCapture)]: false
+
+2025-03-30 00:49:36   },
+
+2025-03-30 00:49:36   cause: Error: connect ECONNREFUSED 172.20.0.7:3003
+
+2025-03-30 00:49:36       at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16) {
+
+2025-03-30 00:49:36     errno: -111,
+
+2025-03-30 00:49:36     code: 'ECONNREFUSED',
+
+2025-03-30 00:49:36     syscall: 'connect',
+
+2025-03-30 00:49:36     address: '172.20.0.7',
+
+2025-03-30 00:49:36     port: 3003
+
+2025-03-30 00:49:36   }
+
+2025-03-30 00:49:36 }
+
+
+
+Context
+— none fetched
+
+Thought Process
+The log shows the root issue - there's a connection failure between the memory service and the AI service:
+
+2025-03-30 00:49:36 Background image enhancement error: AxiosError: connect ECONNREFUSED 172.20.0.7:3003
+The error is ECONNREFUSED when trying to connect to the AI service at 172.20.0.7:3003. This means the memory service is trying to reach the AI service, but the connection is being refused. This could be due to:
+
+The AI service isn't running
+The AI service is running but on a different port
+There's a network configuration issue between the containers
+Docker networking setup is incorrect
+Looking at your docker-compose.yml file:
+
+ai-service:
+  build: ./services/ai-service
+  container_name: ai-service
+  ports:
+    - "3003:3001"  # Map external 3003 to internal 3001
+  volumes:
+    - ./services/ai-service/vertex-ai-key.json:/app/config/google-credentials.json:ro
+  environment:
+    - GOOGLE_APPLICATION_CREDENTIALS=/app/config/google-credentials.json
+    - PORT=3003
+  networks:
+    - memory-capsule-network
+  restart: unless-stopped
+  init: true
+  stop_signal: SIGINT
+  stop_grace_period: 10s
+There's a discrepancy:
+
+The ports mapping is set to "3003:3001" (mapping host port 3003 to container port 3001)
+But the PORT environment variable is set to 3003
+The AI service logs you shared earlier showed that it's listening on port 3003:
+
+AI service running on port 3003
+But the memory service is trying to connect to the AI service at port 3003 inside the Docker network:
+
+http://ai-service:3003/api/enhance-image
+This is definitely the issue. Inside the Docker network, the AI service needs to listen on port 3003 (which it seems to be doing based on the logs), but the port mapping in the docker-compose.yml file isn't correctly set up.
+
+Connection Refused: AI Service Connection Issue
+Based on the memory service logs, I've identified the critical issue:
+
+Background image enhancement error: AxiosError: connect ECONNREFUSED 172.20.0.7:3003
+
+Copy
+
+
+Root Cause: Port Configuration Mismatch
+Looking at your docker-compose.yml:
+
+ai-service:
+  build: ./services/ai-service
+  container_name: ai-service
+  ports:
+    - "3003:3001"  # Map external 3003 to internal 3001
+  environment:
+    - PORT=3003    # <-- This is causing confusion
+
+Copy
+
+
+There's a port configuration mismatch:
+
+The ports setting maps host port 3003 to container port 3001
+But the environment variable sets PORT=3003
+Your ai-service is listening on port 3003 (based on logs: "AI service running on port 3003")
+But Docker is only exposing port 3001 internally
+Solution: Fix Port Configuration
+You have two options:
+
+Option 1: Change ports mapping in docker-compose.yml
+docker-compose down
+
+Copy
+
+
+Send command to Terminal
+Edit the docker-compose.yml file:
+
+ai-service:
+  # ... other settings
+  ports:
+    - "3003:3003"  # Change this line to map host 3003 to container 3003
+  # ... other settings
+
+Copy
+
+
+Then restart:
+
+docker-compose up -d
+
+Copy
+
+
+Send command to Terminal
+Option 2: Change the URL in the memory service
+In your memory service, update the URL used to call the AI service:
+
+// Change this line
+const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+  
+// To this
+const aiResponse = await axios.post('http://ai-service:3001/api/enhance-image', {
+
+Copy
+
+
+services\memory-service\src\index.js
+Then restart the memory service:
+
+docker-compose restart memory-service
+
+Copy
+
+
+Send command to Terminal
+Explanation
+Inside the Docker network, services communicate using their internal ports, not the external mapped ports. Since your AI service is configured to listen on port 3003 but Docker is exposing 3001 internally, the memory service can't connect.
+
+This explains why your AI service works when tested directly (it responds on the host port 3003), but fails when called from the memory service (which is trying to reach it at container port 3003, which isn't exposed).
+
+The quickest fix is Option 2 - changing the URL in the memory service to use port 3001, which aligns with what's already configured in docker-compose.yml.
+
+docker-compose.yml
+ see its mapped already 3003:3003 and 
+index.js
+ see its already http://ai-service:3003/api/enhance-image, still that error
+
+
+
+Context
+— 2 new items
+
+Thought Process
+Let me re-check the docker-compose.yml file you provided earlier:
+
+ai-service:
+  build: ./services/ai-service
+  container_name: ai-service
+  ports:
+    - "3003:3003"  # Map external 3003 to internal 3001
+  volumes:
+    - ./services/ai-service/vertex-ai-key.json:/app/config/google-credentials.json:ro
+  environment:
+    - GOOGLE_APPLICATION_CREDENTIALS=/app/config/google-credentials.json
+    - PORT=3003
+  networks:
+    - memory-capsule-network
+  restart: unless-stopped
+  init: true
+  stop_signal: SIGINT
+  stop_grace_period: 10s
+Wait, I see something strange. In the version I quoted, I saw ports "3003:3001" but you're saying it's already "3003:3003". Let me check the context again:
+
+In the docker-compose.yml you provided earlier:
+
+  ai-service:
+    build: ./services/ai-service
+    container_name: ai-service
+    ports:
+      - "3003:3001"  # Map external 3003 to internal 3001
+    volumes:
+      - ./services/ai-service/vertex-ai-key.json:/app/config/google-credentials.json:ro
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/config/google-credentials.json
+      - PORT=3003
+But then you later provided:
+
+  ai-service:
+    build: ./services/ai-service
+    container_name: ai-service
+    ports:
+      - "3003:3003"  # Map external 3003 to internal 3001
+There seems to be a discrepancy between these two versions. The comment still says "Map external 3003 to internal 3001" but the actual mapping is "3003:3003".
+
+If the mapping is now "3003:3003" and the environment variable is PORT=3003, and the memory service is using http://ai-service:3003/api/enhance-image, then there should be no port mismatch.
+
+Let's consider other possible issues:
+
+Service not actually running: Maybe the AI service crashed or isn't starting properly.
+Network issues: Maybe there's a problem with the Docker network.
+Firewall/security: Maybe there's a firewall or security setting blocking the connection.
+API endpoint incorrect: Maybe the endpoint path is wrong.
+Let's check if the AI service is actually listening on port 3003 inside its container. We should also verify the correct API endpoint.
+
+From the AI service logs you showed:
+
+Starting server initialization
+AI service running on port 3003
+This indicates the service is running and listening on port 3003. And it processed an image enhancement request successfully.
+
+The memory service is trying to reach the AI service at:
+
+http://ai-service:3003/api/enhance-image
+And it's getting a connection refused error. This typically means:
+
+The host 'ai-service' is not accessible (DNS resolution issue)
+Or the service is not running on port 3003
+Or something is blocking the connection
+Let's check if the AI service has the correct endpoint. From the AI service logs, we see:
+
+Enhancing image bafybeihhzuqbbz342jylw7oyussygpgutrwmuph3yk37dq2r57ji7npq4a based on description: yyyyyyyyyyyyyyyyyyyyyy
+Which implies the endpoint exists and is working.
+
+This seems to be a fundamental networking issue between containers.
+
+Docker Network Connection Issue Analysis
+I noticed a discrepancy in the information. Let me analyze the current situation:
+
+Current Configuration in docker-compose.yml
+ai-service:
+  build: ./services/ai-service
+  container_name: ai-service
+  ports:
+    - "3003:3003"  # Maps host port 3003 to container port 3003
+  environment:
+    - PORT=3003
+  # other config...
+
+Copy
+
+
+Memory Service Connection Attempt
+The memory service is trying to connect to:
+
+http://ai-service:3003/api/enhance-image
+
+Copy
+
+
+Yet Still Getting Connection Refused
+Since both the configuration and connection attempt look correct, we need to check other possible causes:
+
+Troubleshooting Steps
+Check if AI service is actually running
+
+docker ps | grep ai-service
+
+Copy
+
+
+Send command to Terminal
+This should show the container is up and running.
+
+Check AI service logs for binding information
+
+docker logs ai-service
+
+Copy
+
+
+Send command to Terminal
+Look for something like "Listening on 0.0.0.0:3003" - make sure it's not binding to localhost/127.0.0.1 only.
+
+Check network connectivity between containers
+
+docker exec memory-service ping ai-service
+
+Copy
+
+
+Send command to Terminal
+This verifies DNS resolution is working correctly.
+
+Check if the port is actually listening inside the container
+
+docker exec ai-service netstat -tuln | grep 3003
+
+Copy
+
+
+Send command to Terminal
+This confirms the service is listening on the expected port.
+
+Restart both services
+
+docker-compose restart memory-service ai-service
+
+Copy
+
+
+Send command to Terminal
+Sometimes a full restart can resolve connection issues.
+
+Common Causes for ECONNREFUSED
+Binding issue: AI service might be binding to 127.0.0.1 instead of 0.0.0.0 (all interfaces)
+Firewall/security setting: Container might have a firewall blocking connections
+Docker network issue: The network might need to be recreated
+Port mismatch: The service might be listening on a different port than expected
+API endpoint path: The endpoint URL may be incorrect
+If the issue persists, try recreating the Docker network:
+
+docker-compose down
+docker network prune
+docker-compose up -d
+
+Copy
+
+
+Send command to Terminal
+This should clear any networking issues that might be present in the Docker environment.
+
+2025-03-30 01:00:31 
+
+2025-03-30 01:00:31 > ai-service@1.0.0 dev
+
+2025-03-30 01:00:31 > nodemon src/index.js
+
+2025-03-30 01:00:31 
+
+2025-03-30 01:00:31 [nodemon] 3.1.9
+
+2025-03-30 01:00:31 [nodemon] to restart at any time, enter `rs`
+
+2025-03-30 01:00:31 [nodemon] watching path(s): *.*
+
+2025-03-30 01:00:31 [nodemon] watching extensions: js,mjs,cjs,json
+
+2025-03-30 01:00:31 [nodemon] starting `node src/index.js`
+
+2025-03-30 01:00:31 Starting server initialization
+
+2025-03-30 01:00:31 AI service running on port 3003
+
+2025-03-30 01:01:14 Generating narrative for: "7777777777777..."
+
+2025-03-30 01:01:14 Enhancing image bafybeifsau6x3avrvigq2rcc22hefmbxm2yn4pxo3wqiyiwdeavecfxbk4 based on description: 7777777777777
+
+2025-03-30 01:01:14 Downloading from https://dweb.link/ipfs/bafybeifsau6x3avrvigq2rcc22hefmbxm2yn4pxo3wqiyiwdeavecfxbk4 (attempt 1/10)
+
+2025-03-30 01:01:17 Gateway https://dweb.link/ipfs/ success rate: 100.0%
+
+2025-03-30 01:01:17 Successfully downloaded from https://dweb.link/ipfs/ (1210077 bytes)
+
+2025-03-30 01:01:17 Image download successful (1210077 bytes)
+
+2025-03-30 01:01:17 Enhancing image with sharp
+
+2025-03-30 01:01:19 Image enhanced (2481410 bytes)
+
+2025-03-30 01:01:19 Enhanced image saved to /tmp/enhanced_1743276679826.jpg
+
+2025-03-30 01:01:19 Uploading to Pinata...
+
+2025-03-30 01:01:19 Uploading to Pinata...
+
+2025-03-30 01:01:24 DNS resolution error, will retry...
+
+2025-03-30 01:01:24 Retrying Pinata upload (attempt 2/5)...
+
+2025-03-30 01:01:26 Uploading to Pinata...
+
+2025-03-30 01:01:31 Saved gateway history to file
+
+2025-03-30 01:01:34 [nodemon] restarting due to changes...
+
+2025-03-30 01:01:34 SIGTERM signal received: closing HTTP server
+
+2025-03-30 01:01:34 SIGTERM signal received: closing HTTP server
+
+2025-03-30 01:01:34 Could not kill process on port 3001. No process running on port.
+
+2025-03-30 01:01:34 Upload successful, IPFS hash: bafybeidkmhapvyhn4f6szcjdeztu3agkv2vwo5dj54gxdig7wpssckjvfy
+
+2025-03-30 01:01:34 Upload successful, IPFS hash: bafybeidkmhapvyhn4f6szcjdeztu3agkv2vwo5dj54gxdig7wpssckjvfy
+
+2025-03-30 01:01:34 HTTP server closed
+
+2025-03-30 01:01:34 HTTP server closed
+
+
+
+Context
+— none fetched
+
+Thought Process
+Let's analyze the AI service logs.
+
+The log shows:
+
+The AI service is running on port 3003.
+It received a request to enhance image bafybeifsau6x3avrvigq2rcc22hefmbxm2yn4pxo3wqiyiwdeavecfxbk4.
+It downloaded the image successfully.
+It enhanced the image with sharp library.
+It tried to upload to Pinata but had DNS resolution issues initially.
+It retried and successfully uploaded with hash bafybeidkmhapvyhn4f6szcjdeztu3agkv2vwo5dj54gxdig7wpssckjvfy.
+There was a nodemon restart in the middle of the process.
+It mentions "Could not kill process on port 3001. No process running on port."
+Interestingly, that last point suggests the application might be using port 3001 for something (perhaps as an internal port or management port), while exposing its main service on 3003.
+
+Looking at the docker-compose, the ports mapping is:
+
+ports:
+  - "3003:3001"  # Map external 3003 to internal 3001
+This suggests the service should be listening on port 3001 internally, but the logs clearly show it's listening on 3003. This mismatch is likely the cause of the connection issues.
+
+From a previous update you mentioned the mapping was "3003:3003" but the comment still said "Map external 3003 to internal 3001", indicating possible confusion.
+
+Given the error "Could not kill process on port 3001. No process running on port.", it seems the application is NOT actually running on port 3001 at all, but only on port 3003.
+
+AI Service Port Configuration Issue Analysis
+Looking at the AI service logs, I can see the root cause of your connection problem:
+
+AI service running on port 3003
+...
+Could not kill process on port 3001. No process running on port.
+
+Copy
+
+
+Problem Identified
+There's a fundamental discrepancy in your service configuration:
+
+Your AI service is actually listening on port 3003 internally (confirmed by logs)
+
+But according to your docker-compose.yml comment:
+
+ports:
+  - "3003:3001"  # Map external 3003 to internal 3001
+
+Copy
+
+
+Docker is expecting the service to be available on port 3001 internally
+
+The error "Could not kill process on port 3001. No process running on port" confirms there's nothing listening on 3001
+
+Solution
+You need to make your docker-compose.yml settings match your actual service configuration:
+
+Edit your docker-compose.yml:
+ai-service:
+  # other settings...
+  ports:
+    - "3003:3003"  # Map external 3003 to internal 3003 (since that's what the service uses)
+  environment:
+    - PORT=3003
+  # other settings...
+
+Copy
+
+
+Restart your services:
+docker-compose down
+docker-compose up -d
+
+Copy
+
+
+Send command to Terminal
+Explanation
+Your AI service is correctly running and processing image enhancement requests (as shown in the logs), but there's a mismatch between:
+
+What port the AI service is actually using (3003)
+What port the Docker networking is exposing (might still be 3001 internally)
+This is why the memory service gets "ECONNREFUSED" when trying to reach the AI service on port 3003 - the connection attempt can't reach the right port because of the Docker networking configuration.
+
+still db values are empty or null -> INSERT INTO "public"."memories" ("id", "title", "description", "ipfsHash", "type", "ownerAddress", "url", "created_at", "narrative", "sharecount", "enhanced_image_hash", "enhanced_image_url", "is_local_enhancement") VALUES ('167', '444444', '7777777777777', 'bafybeifsau6x3avrvigq2rcc22hefmbxm2yn4pxo3wqiyiwdeavecfxbk4', 'standard', '0x69592f057c1Fd4D1a82758D91acAf5D37d2639F8', 'https://gateway.pinata.cloud/ipfs/bafybeifsau6x3avrvigq2rcc22hefmbxm2yn4pxo3wqiyiwdeavecfxbk4', '2025-03-29 19:31:13.934+00', 'The sequence of sevens, 7777777777777, shimmers in my memory like a string of lights against a velvet sky. It represents a time when possibilities felt endless, each digit a promise whispered on the breeze.  Though the specifics have faded, the feeling remains – a potent cocktail of hope, excitement, and the bittersweet ache of time's passage.  It's a reminder that even the smallest moments can hold the universe within them, if we let them.', '0', null, null, 'false');
+
+
+
+Context
+— none fetched
+
+Thought Process
+Looking at the SQL INSERT statement, I can see that the database is successfully storing the memory with its basic information and narrative, but the enhanced image fields (enhanced_image_hash, enhanced_image_url) are still NULL. This suggests that while the AI service is successfully generating the enhanced image and the IPFS hash (as shown in the AI service logs), this information is not making it back to the memory service to update the database record.
+
+From the memory service logs we saw earlier, there was a connection error:
+
+Background image enhancement error: AxiosError: connect ECONNREFUSED 172.20.0.7:3003
+This connection issue is preventing the memory service from receiving the enhanced image information from the AI service. Even though the AI service is successfully processing the enhancement request (as shown in its logs), the memory service can't connect to get the result, so it can't update the database.
+
+From the logs and context:
+
+The memory service is trying to connect to the AI service at the correct address (ai-service:3003)
+The AI service is running and listening on port 3003
+But Docker networking is not allowing the connection between these services
+Let's review what's happening:
+
+User submits a memory with an image through the frontend
+Memory service processes the submission, stores the original memory in the database
+Memory service tries to call the AI service to enhance the image
+This call fails with ECONNREFUSED
+As a result, the enhanced_image_hash and enhanced_image_url fields remain NULL in the database
+To solve this:
+
+We need to ensure Docker networking is properly configured
+Both services need to be on the same Docker network
+The AI service needs to expose the port it's actually using (3003)
+The memory service needs to reach the AI service at the right address and port
+Database NULL Values for Enhanced Image Analysis
+Based on the SQL INSERT statement you provided, I can see the issue:
+
+INSERT INTO "public"."memories" (
+  ...
+  "enhanced_image_hash", "enhanced_image_url", "is_local_enhancement"
+) VALUES (
+  ...
+  null, null, 'false'
+);
+
+Copy
+
+
+Root Cause Analysis
+The database values for enhanced_image_hash and enhanced_image_url are NULL because:
+
+The memory service can't connect to the AI service due to the port mismatch we identified
+Since the connection fails with ECONNREFUSED, the enhancement process fails
+Without a successful response from the AI service, the memory service has no values to insert
+Complete Solution
+You need to fix both the Docker networking configuration and ensure the memory service properly handles the AI service response:
+
+1. Fix Docker Configuration
+In your docker-compose.yml:
+
+ai-service:
+  # other settings...
+  ports:
+    - "3003:3003"  # Make sure this matches the actual port the service uses
+
+Copy
+
+
+2. Fix Connection URL
+In your memory service (index.js), verify the endpoint:
+
+// Check this URL is correctly pointing to port 3003
+const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+  ipfsHash,
+  description: description || ''
+});
+
+Copy
+
+
+3. Check Response Field Names
+Ensure the memory service is looking for the correct field in the AI service response:
+
+// In your enhanceMemoryImage function, make sure the field name matches
+const enhancedHash = aiResponse.data.ipfsHash; // This needs to match what the AI service returns
+
+Copy
+
+
+Based on the AI service logs, it's returning:
+
+Upload successful, IPFS hash: bafybeidkmhapvyhn4f6szcjdeztu3agkv2vwo5dj54gxdig7wpssckjvfy
+
+Copy
+
+
+4. Rebuild and Restart All Services
+docker-compose down
+docker-compose build
+docker-compose up -d
+
+Copy
+
+
+Send command to Terminal
+This full rebuild ensures all configuration changes are applied and connectivity is restored between services. Once the connection is working, the enhanced image values should be properly saved to the database.
+
+how enhanced_image_hash and enhanced_image_url is getting value correctly from enhancedHash and enhancedUrl
+
+
+
+Context
+— none fetched
+
+Thought Process
+Let me trace through the code to see how enhanced_image_hash and enhanced_image_url get their values from the API response.
+
+In services\memory-service\src\index.js, there's a function called enhanceMemoryImage which handles image enhancement. Let's look at how it processes the response from the AI service and updates the database:
+
+const enhanceMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash, description } = req.body;
+    
+    console.log(`Enhancing memory ${memoryId} with hash ${ipfsHash}`);
+    
+    if (!memoryId || !ipfsHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'Memory ID and IPFS hash are required'
+      });
+    }
+    
+    // Call AI service for enhancement
+    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+      ipfsHash,
+      description: description || ''
+    });
+    
+    console.log('AI service response:', JSON.stringify(aiResponse.data, null, 2));
+    
+    // Extract enhanced hash
+    const enhancedHash = aiResponse.data.ipfsHash; // <-- This field name should match what AI service returns
+    
+    if (!enhancedHash) {
+      return res.status(400).json({
+        success: false, 
+        message: 'No enhanced hash returned'
+      });
+    }
+    
+    // Prepare enhanced image URL
+    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+    
+    // Update the database with enhanced image info
+    const { data, error } = await supabase
+      .from('memories')
+      .update({
+        enhanced_image_hash: enhancedHash,
+        enhanced_image_url: enhancedUrl,
+        is_local_enhancement: false,
+        updated_at: new Date()
+      })
+      .eq('id', memoryId)
+      .select();
+Let me trace through this:
+
+The memory service calls the AI service to enhance an image:
+
+const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {...});
+It extracts the enhanced hash from the AI service response:
+
+const enhancedHash = aiResponse.data.ipfsHash;
+It then constructs the enhanced URL using this hash:
+
+const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+Finally, it updates the database with these values:
+
+const { data, error } = await supabase
+  .from('memories')
+  .update({
+    enhanced_image_hash: enhancedHash,
+    enhanced_image_url: enhancedUrl,
+    is_local_enhancement: false,
+    updated_at: new Date()
+  })
+  .eq('id', memoryId)
+  .select();
+The issue might be that the AI service is returning the enhanced hash in a different field than ipfsHash. Let me look at the AI service code to confirm the response format.
+
+From the logs we've seen, the AI service successfully processes an enhancement and uploads it to Pinata, getting back a hash:
+
+Upload successful, IPFS hash: bafybeidkmhapvyhn4f6szcjdeztu3agkv2vwo5dj54gxdig7wpssckjvfy
+But we need to check if this hash is being correctly included in the response to the memory service.
+
+Looking at what we have of the AI service code from services\ai-service\src\index.js:
+
+app.post('/api/enhance-image', async (req, res) => {
+  try {
+    const { description, ipfsHash } = req.body;
+    
+    if (!description || !ipfsHash) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Both description and ipfsHash are required' 
+      });
+    }
+    
+    console.log(`Enhancing image ${ipfsHash} based on description: ${description}`);
+    
+    // Get the image from IPFS
+    const imageUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+    
+    // Call Vertex AI to enhance the image
+    const enhancedImageHash = await enhanceImageWithAI(description, imageUrl);
+    
+    // Return the enhanced image hash
+    res.status(200).json({
+      success: true,
+      originalIpfsHash: ipfsHash,
+The AI service code doesn't seem to be complete, but it appears it might be returning the enhanced hash as enhancedImageHash rather than ipfsHash. If that's the case, then the memory service looking for aiResponse.data.ipfsHash would find nothing, resulting in NULL values in the database.
+
+The key issue seems to be a mismatch between:
+
+Field name the AI service uses in its response to send the enhanced hash
+Field name the memory service expects when extracting from the response
+In your codebase, the issue is likely a field name mismatch between what the AI service returns and what the memory service expects.
+
+Looking at the relevant code in services\memory-service\src\index.js:
+
+// Call AI service for enhancement
+const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+  ipfsHash,
+  description: description || ''
+});
+
+console.log('AI service response:', JSON.stringify(aiResponse.data, null, 2));
+
+// Extract enhanced hash
+const enhancedHash = aiResponse.data.ipfsHash; // <-- This field name should match what AI service returns
+
+Copy
+
+
+Now let's look at the partial AI service endpoint (services\ai-service\src\index.js):
+
+app.post('/api/enhance-image', async (req, res) => {
+  try {
+    // ...processing...
+    
+    // Return the enhanced image hash
+    res.status(200).json({
+      success: true,
+      originalIpfsHash: ipfsHash,
+
+Copy
+
+
+The code snippet is incomplete, but based on the AI service logs:
+
+Upload successful, IPFS hash: bafybeidkmhapvyhn4f6szcjdeztu3agkv2vwo5dj54gxdig7wpssckjvfy
+
+Copy
+
+
+The Problem
+The memory service is looking for aiResponse.data.ipfsHash, but the AI service is likely returning the enhanced hash with a different field name, perhaps something like:
+
+enhancedImageHash
+enhancedIpfsHash
+Or just hash
+Fix Options
+Option 1: Change the memory service to match the AI service's field name:
+// Change this line
+const enhancedHash = aiResponse.data.ipfsHash;
+
+// To something like this (depending on what the AI service returns)
+const enhancedHash = aiResponse.data.enhancedImageHash || aiResponse.data.hash;
+
+// Add debugging to discover the right field
+console.log('Full AI response data:', aiResponse.data);
+
+Copy
+
+
+services\memory-service\src\index.js
+Option 2: Change the AI service to match what the memory service expects:
+// Make sure the response includes ipfsHash field
+res.status(200).json({
+  success: true,
+  originalIpfsHash: ipfsHash,
+  ipfsHash: enhancedImageHash, // Add this line to match what memory service expects
+  // ...other fields
+});
+
+Copy
+
+
+services\ai-service\src\index.js
+The correct values will be stored in the database once the field names match between the AI service response and what the memory service expects to extract from that response.
+
+why enhance_image_hash , enhance_image_url is getting null and is_local_enhancement is getting false value
+
+
+
+Context
+— none fetched
+
+Thought Process
+Let me review the codebase to identify why these fields are getting null/false values.
+
+In services\memory-service\src\index.js, we have the enhanceMemoryImage function that handles image enhancement:
+
+const enhanceMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash, description } = req.body;
+    
+    // Call AI service for enhancement
+    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+      ipfsHash,
+      description: description || ''
+    });
+    
+    // Extract enhanced hash
+    const enhancedHash = aiResponse.data.ipfsHash; // <-- This field name should match what AI service returns
+    
+    if (!enhancedHash) {
+      return res.status(400).json({
+        success: false, 
+        message: 'No enhanced hash returned'
+      });
+    }
+    
+    // Prepare enhanced image URL
+    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+    
+    // Update the database with enhanced image info
+    const { data, error } = await supabase
+      .from('memories')
+      .update({
+        enhanced_image_hash: enhancedHash,
+        enhanced_image_url: enhancedUrl,
+        is_local_enhancement: false,
+        updated_at: new Date()
+      })
+      .eq('id', memoryId)
+      .select();
+From the provided logs earlier, we saw that the memory service was getting a connection refused error when trying to connect to the AI service:
+
+Background image enhancement error: AxiosError: connect ECONNREFUSED 172.20.0.7:3003
+This suggests that the memory service can't even reach the AI service due to networking issues, which means the axios call is failing. When an exception occurs, the code would move to the catch block, and the database update would never happen.
+
+However, we're seeing that is_local_enhancement is explicitly set to false in the database. This suggests that some part of the code is setting this field without setting the other fields.
+
+Looking at the complete code, there's a second enhancement process that runs in the background during memory creation:
+
+app.post('/memories/create', upload.array('files'), async (req, res) => {
+  try {
+    // ... other code ...
+    
+    // If enhanceImage is true, also trigger image enhancement
+    if (enhanceImage === 'true' && ipfsHash) {
+      setTimeout(async () => {
+        const enhanceImageWithAI = async (memoryId, description, ipfsHash) => {
+          try {
+            console.log(`Enhancing image for memory ${memoryId}`);
+            
+            // Call AI service for image enhancement
+            const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+              description,
+              ipfsHash
+            }, { timeout: 60000 }); // Increase timeout for image processing
+            
+            if (aiResponse.data.success && 
+                aiResponse.data.enhancedImageHash && 
+                aiResponse.data.enhancedImageHash !== ipfsHash) {
+              
+              console.log(`Updating memory ${memoryId} with enhanced image`);
+              
+              // Update the memory with the enhanced image hash
+              const { data, error } = await supabase
+                .from('memories')
+                .update({ 
+                  ipfsHash: aiResponse.data.enhancedImageHash,
+                  url: `https://gateway.pinata.cloud/ipfs/${aiResponse.data.enhancedImageHash}`
+                })
+                .eq('id', memoryId);
+              
+              if (error) {
+                console.error('Error updating memory with enhanced image:', error);
+                return false;
+              }
+              
+              console.log(`Successfully updated memory ${memoryId} with enhanced image`);
+              return true;
+            } else {
+              console.log('No enhancement performed or same image returned');
+              return false;
+            }
+          } catch (error) {
+            console.error('Background image enhancement error:', error);
+            return false;
+          }
+        };
+
+        await enhanceImageWithAI(memory.id, description, ipfsHash);
+      }, 200); // Small delay after narrative generation
+    }
+In this code, we can see:
+
+The background enhancement process also tries to call the AI service at http://ai-service:3003/api/enhance-image
+It's looking for aiResponse.data.enhancedImageHash (note the different field name than in the other function)
+On success, it updates the ipfsHash and url fields of the memory, but NOT enhanced_image_hash or enhanced_image_url
+If the call fails, it logs the error but doesn't set any fields
+This doesn't explain why is_local_enhancement is explicitly false in the database, because none of the code paths appear to set just that field without also setting enhanced_image_hash and enhanced_image_url.
+
+The most likely scenario is:
+
+The memory is created with default values, possibly including is_local_enhancement: false
+The enhancement process fails due to connection issues
+The other fields remain null because they're never set
+Let's look for evidence of this in the initial memory creation code:
+
+// Create record with exact column names matching Supabase schema
+const memoryData = { 
+  title: title || "Untitled Memory", 
+  description: description || "", 
+  created_at: date || new Date().toISOString(), 
+  ipfsHash: ipfsHash,
+  url: fileUrls.length > 0 ? fileUrls[0] : "",
+  ownerAddress: owner,
+  narrative: "", // Start with empty narrative
+  type: "standard",
+  sharecount: 0
+};
+This doesn't explicitly set is_local_enhancement, so it might be defaulting to false in the database schema. And since the enhancement process fails, the enhanced_image_hash and enhanced_image_url fields are never set, remaining null.
+
+To summarize:
+
+is_local_enhancement is likely getting false as a default value in the database schema
+enhance_image_hash and enhance_image_url are null because the enhancement process fails due to connection issues
+Analysis: Why Enhanced Image Fields Are NULL
+After examining the codebase, I can explain why your database values are problematic:
+
+Issue Explanation:
+is_local_enhancement: false - This is being explicitly set when trying to update the enhanced image fields in the database:
+// Update the database with enhanced image info
+await supabase
+  .from('memories')
+  .update({
+    enhanced_image_hash: enhancedHash,
+    enhanced_image_url: enhancedUrl,
+    is_local_enhancement: false,  // This value is explicitly set
+    updated_at: new Date()
+  })
+  .eq('id', memoryId)
+
+Copy
+
+
+enhanced_image_hash: null and enhanced_image_url: null - These remain null because:
+
+a. In the enhanceMemoryImage function, the connection to the AI service fails with ECONNREFUSED b. The database update never executes because of this failure c. The connection failure occurs after the memory is already inserted into the database with null values for these fields
+
+Detailed Process Flow:
+Memory is created with default values (null for enhanced fields)
+Enhancement process tries to connect to AI service
+Connection fails with ECONNREFUSED error
+The catch block simply logs the error but doesn't set fields:
+try {
+  // AI service connection code...
+} catch (error) {
+  console.error('Background image enhancement error:', error);
+  return false;  // No database update happens here
+}
+
+Copy
+
+
+The original database record remains unchanged, with null enhanced fields
+Root Cause:
+There are actually two field name mismatches:
+
+In the primary enhancement function, your code looks for aiResponse.data.ipfsHash
+In the background enhancement function, your code looks for aiResponse.data.enhancedImageHash
+// In one function:
+const enhancedHash = aiResponse.data.ipfsHash;
+
+// In another function: 
+if (aiResponse.data.success && 
+    aiResponse.data.enhancedImageHash && 
+    aiResponse.data.enhancedImageHash !== ipfsHash) {
+  // Update code...
+}
+
+Copy
+
+
+But your AI service is likely returning the hash with a completely different field name.
+
+This is why is_local_enhancement gets set to false (it's hardcoded in the update), but the enhancement fields remain null (the update never completes due to the connection error).
+
+so how to fix
+
+
+
+Context
+— none fetched
+
+Thought Process
+Based on the analysis of the codebase and the issues identified, we need to fix several problems to get the enhanced image fields properly populated in the database:
+
+Fix the Docker networking issue causing the ECONNREFUSED error
+Ensure the field names match between the AI service response and what the memory service expects
+Make sure both enhancement functions are consistently handling the response
+Here's how to fix these issues:
+
+First, fix the Docker configuration to ensure the services can communicate:
+In docker-compose.yml:
+
+ai-service:
+  # other settings...
+  ports:
+    - "3003:3003"  # Make sure this is consistent with what the service listens on
+Fix the field name inconsistency in the memory service:
+
+Add error handling to provide better debugging information
+
+Complete Fix for Enhanced Image Fields
+Based on my analysis, here's a comprehensive fix for your issue:
+
+1. Fix Docker Networking
+Ensure your docker-compose.yml has consistent port mapping:
+
+ai-service:
+  build: ./services/ai-service
+  container_name: ai-service
+  ports:
+    - "3003:3003"  # Make sure this matches the actual port the service uses
+  environment:
+    - PORT=3003
+  # Other settings...
+
+Copy
+
+
+2. Fix Field Name Inconsistency
+Update the memory service to use consistent field names. Edit services\memory-service\src\index.js:
+
+// In the enhanceMemoryImage function, modify this:
+const enhancedHash = aiResponse.data.ipfsHash;
+
+// Change to this (to handle multiple possible field names):
+const enhancedHash = aiResponse.data.enhancedImageHash || 
+                    aiResponse.data.ipfsHash || 
+                    aiResponse.data.hash;
+
+// Add debug logging before:
+console.log('AI service full response:', JSON.stringify(aiResponse.data));
+
+Copy
+
+
+services\memory-service\src\index.js
+3. Fix the Background Enhancement Function
+Update the background enhancement function in the same file:
+
+const enhanceImageWithAI = async (memoryId, description, ipfsHash) => {
+  try {
+    console.log(`Enhancing image for memory ${memoryId}`);
+    
+    // Call AI service for image enhancement
+    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+      description,
+      ipfsHash
+    }, { timeout: 60000 });
+    
+    console.log('AI service full response:', JSON.stringify(aiResponse.data));
+    
+    // Use consistent field name handling
+    const enhancedHash = aiResponse.data.enhancedImageHash || 
+                         aiResponse.data.ipfsHash || 
+                         aiResponse.data.hash;
+    
+    if (aiResponse.data.success && enhancedHash && enhancedHash !== ipfsHash) {
+      console.log(`Updating memory ${memoryId} with enhanced image hash: ${enhancedHash}`);
+      
+      // Update both regular and enhanced fields
+      const { data, error } = await supabase
+        .from('memories')
+        .update({ 
+          enhanced_image_hash: enhancedHash,
+          enhanced_image_url: `https://gateway.pinata.cloud/ipfs/${enhancedHash}`,
+          is_local_enhancement: false,
+          updated_at: new Date()
+        })
+        .eq('id', memoryId);
+      
+      if (error) {
+        console.error('Error updating memory with enhanced image:', error);
+        return false;
+      }
+      
+      console.log(`Successfully updated memory ${memoryId} with enhanced image`);
+      return true;
+    } else {
+      console.log('No enhancement performed or same image returned');
+      return false;
+    }
+  } catch (error) {
+    console.error('Background image enhancement error:', error);
+    return false;
+  }
+};
+
+Copy
+
+
+services\memory-service\src\index.js
+4. Update the AI Service Response Format
+Ensure the AI service returns a consistent field name. Edit services\ai-service\src\index.js:
+
+// In the /api/enhance-image endpoint
+res.status(200).json({
+  success: true,
+  originalIpfsHash: ipfsHash,
+  enhancedImageHash: enhancedImageHash,  // Make sure this field is included
+  ipfsHash: enhancedImageHash,           // Also include this for backward compatibility
+  // Other fields...
+});
+
+Copy
+
+
+services\ai-service\src\index.js
+5. Add More Robust Error Handling
+Add better logging and retry logic for network issues:
+
+// Add this utility function
+const callAIServiceWithRetry = async (endpoint, data, maxRetries = 3) => {
+  let retries = 0;
+  
+  while (retries < maxRetries) {
+    try {
+      console.log(`Calling AI service (attempt ${retries + 1}/${maxRetries}): ${endpoint}`);
+      return await axios.post(`http://ai-service:3003/api/${endpoint}`, data, { 
+        timeout: 60000 
+      });
+    } catch (error) {
+      retries++;
+      console.error(`AI service call failed (attempt ${retries}/${maxRetries}):`, error.message);
+      
+      if (retries >= maxRetries) throw error;
+      
+      // Wait before retrying (exponential backoff)
+      await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+    }
+  }
+};
+
+// Then use this in your enhancement functions
+const aiResponse = await callAIServiceWithRetry('enhance-image', {
+  description,
+  ipfsHash
+});
+
+Copy
+
+
+services\memory-service\src\index.js
+After making these changes, restart all your services:
+
+docker-compose down
+docker-compose build
+docker-compose up -d
+
+Copy
+
+
+Send command to Terminal
+This comprehensive approach should resolve both the networking issues and the field name inconsistencies that are causing your database fields to remain null.
+
+still its null
+
+
+
+Context
+— none fetched
+
+Thought Process
+It's frustrating that after our fixes, the enhanced image fields are still null. Let's think about additional potential issues:
+
+Verification Issue: Are we sure our changes were properly applied? Sometimes code changes don't take effect if the Docker containers aren't properly rebuilt.
+
+Still Connection Issues: The memory service might still be unable to reach the AI service despite our changes.
+
+Data Flow Issue: Even if the connection is working, there might be an issue with how the data flows from the AI service to the database.
+
+Response Format: The AI service might be returning data in a completely different format than what we expect.
+
+Transaction Issues: Maybe the database update is failing for some other reason.
+
+Let's see if we can get more insight:
+
+We should add extensive logging in both services to trace exactly what's happening.
+We should verify if the AI service is actually being reached from the memory service.
+We should check if the database update operation is actually executing.
+Troubleshooting Enhanced Image Fields Still NULL
+If the fields are still NULL after our previous fixes, we need to implement a more systematic debugging approach:
+
+1. Add Detailed Debug Logging
+Let's add comprehensive logging throughout the enhancement process in services\memory-service\src\index.js:
+
+// In the enhanceMemoryImage function:
+console.log(`[DEBUG] Starting enhancement for memory ${memoryId}`);
+console.log(`[DEBUG] Calling AI service with payload:`, { ipfsHash, description });
+
+try {
+  const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
+    ipfsHash,
+    description: description || ''
+  });
+  
+  console.log(`[DEBUG] AI service response status:`, aiResponse.status);
+  console.log(`[DEBUG] AI service response headers:`, aiResponse.headers);
+  console.log(`[DEBUG] AI service full response body:`, JSON.stringify(aiResponse.data, null, 2));
+  
+  // Rest of the function...
+} catch (error) {
+  console.error(`[DEBUG] AI service call failed:`, error.message);
+  if (error.response) {
+    console.error(`[DEBUG] AI service error response:`, error.response.data);
+  }
+  // Rest of error handling...
+}
+
+Copy
+
+
+services\memory-service\src\index.js
+2. Create a Manual Test Endpoint
+Add a direct test endpoint to verify AI service connectivity:
+
+// Add this test endpoint
+app.get('/test-ai-connection', async (req, res) => {
+  try {
+    console.log('[DEBUG] Testing AI service connection...');
+    const response = await axios.get('http://ai-service:3003/health');
+    console.log('[DEBUG] AI service reachable:', response.data);
+    res.json({ success: true, aiServiceResponse: response.data });
+  } catch (error) {
+    console.error('[DEBUG] AI service connection test failed:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.response ? error.response.data : 'No response details'
+    });
+  }
+});
+
+Copy
+
+
+services\memory-service\src\index.js
+Add a corresponding health endpoint in the AI service:
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+Copy
+
+
+services\ai-service\src\index.js
+3. Test Direct Database Updates
+Add a test endpoint to verify database updates are working:
+
+app.get('/test-db-update/:memoryId', async (req, res) => {
+  try {
+    const { memoryId } = req.params;
+    console.log(`[DEBUG] Testing database update for memory ${memoryId}`);
+    
+    const testHash = `test-hash-${Date.now()}`;
+    const testUrl = `https://gateway.pinata.cloud/ipfs/${testHash}`;
+    
+    const { data, error } = await supabase
+      .from('memories')
+      .update({
+        enhanced_image_hash: testHash,
+        enhanced_image_url: testUrl,
+        is_local_enhancement: false,
+        updated_at: new Date()
+      })
+      .eq('id', memoryId)
+      .select();
+    
+    if (error) {
+      console.error('[DEBUG] Database update error:', error);
+      return res.status(500).json({ success: false, error });
+    }
+    
+    console.log('[DEBUG] Database update result:', data);
+    res.json({ success: true, updatedMemory: data });
+  } catch (error) {
+    console.error('[DEBUG] Test database update failed:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+Copy
+
+
+services\memory-service\src\index.js
+4. Verify Docker Configuration
+Check if your Docker services are properly connected:
+
+docker network inspect memory-capsule-network
+
+Copy
+
+
+Send command to Terminal
+Look for both services in the same network.
+
+5. Test Direct Access to the AI Service
+Try a curl command from inside the memory service container:
+
+docker exec -it memory-service curl -v http://ai-service:3003/health
+
+Copy
+
+
+Send command to Terminal
+6. Simplify Enhancement Function Temporarily
+Modify the enhancement function to use hardcoded values temporarily:
+
+const enhanceMemoryImage = async (req, res) => {
+  try {
+    const { memoryId, ipfsHash, description } = req.body;
+    
+    console.log(`[DEBUG] Using hardcoded values for testing`);
+    
+    // Use hardcoded values for testing
+    const enhancedHash = `test-enhanced-hash-${Date.now()}`;
+    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+    
+    // Update the database with test values
+    const { data, error } = await supabase
+      .from('memories')
+      .update({
+        enhanced_image_hash: enhancedHash,
+        enhanced_image_url: enhancedUrl,
+        is_local_enhancement: false,
+        updated_at: new Date()
+      })
+      .eq('id', memoryId)
+      .select();
+    
+    if (error) {
+      console.error('[DEBUG] Database update error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to update memory with enhanced image'
+      });
+    }
+    
+    return res.status(200).json({
+      success: true,
+      memory: data[0],
+      note: 'Using hardcoded test values'
+    });
+  } catch (error) {
+    console.error('[DEBUG] Enhancement error:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error'
+    });
+  }
+};
+
+Copy
+
+
+services\memory-service\src\index.js
+After making these changes, rebuild and restart your containers, then test each endpoint:
+
+docker-compose down
+docker-compose build
+docker-compose up -d
+
+Copy
+
+
+Send command to Terminal
+These debugging steps will systematically isolate the issue, allowing you to determine exactly where the problem is occurring.
+
+ AI service full response: {"success":true,"originalIpfsHash":"bafybeig2opcbjfykkrzhgu5oogaxb7cfl4u2g5s5cujby7uwhn74hdbbhm","enhancedImageHash":"local_1743278259168","ipfsHash":"local_1743278259168","enhancedImageUrl":"/local-image/1743278259168","isLocalStorage":true,"enhancementDetails":{"originalSize":628020,"enhancedSize":1230346,"timestamp":1743278259168}}   but in db 170
+
+111122222222
+
+5555555666666666666666666666666666
+
+bafybeig2opcbjfykkrzhgu5oogaxb7cfl4u2g5s5cujby7uwhn74hdbbhm
+
+standard
+
+0x69592f057c1Fd4D1a82758D91acAf5D37d2639F8
+
+https://gateway.pinata.cloud/ipfs/bafybeig2opcbjfykkrzhgu5oogaxb7cfl4u2g5s5cujby7uwhn74hdbbhm
+
+2025-03-29 19:57:33.266+00
+
+I can't create a narrative about a memory based on "5555555666666666666666666666666666."  This string of numbers doesn't provide any context or details that would allow me to understand what the memory is about.
+To help me write a meaningful narrative, please tell me:
+* **What does this string of numbers represent?** Is it a date, a code, a phone number, or something else?
+* **What happened in this memory?** Give me some details about the event, the people involved, and the setting.
+* **What emotions did you experience during this memory?** Were you happy, sad, excited, scared, etc.?
+Once I have this information, I can create a reflective and emotional narrative for you.  馃槉
+
+0
+
+
+
+
+
+FALSE
+
+
+still null
+
+
+
+Context
+— none fetched
+
+Thought Process
+I see the problem now. Looking at the AI service response and database values:
+
+AI Service Response:
+
+{
+  "success": true,
+  "originalIpfsHash": "bafybeig2opcbjfykkrzhgu5oogaxb7cfl4u2g5s5cujby7uwhn74hdbbhm",
+  "enhancedImageHash": "local_1743278259168",
+  "ipfsHash": "local_1743278259168",
+  "enhancedImageUrl": "/local-image/1743278259168",
+  "isLocalStorage": true,
+  "enhancementDetails": {
+    "originalSize": 628020,
+    "enhancedSize": 1230346,
+    "timestamp": 1743278259168
+  }
+}
+But in the database, the enhanced_image_hash and enhanced_image_url fields are still NULL.
+
+The key issue is that the AI service is returning a locally stored enhanced image with:
+
+enhancedImageHash: "local_1743278259168"
+enhancedImageUrl: "/local-image/1743278259168"
+isLocalStorage: true
+This is quite different from the expected IPFS hash format. The memory service is probably expecting an IPFS hash to build a proper URL. When it sees "local_" as the hash prefix, it might be rejecting it as invalid.
+
+Let's review how the memory service handles the enhanced image update:
+
+It gets the enhancedHash value from the AI service response
+It generates an enhancedUrl with https://gateway.pinata.cloud/ipfs/${enhancedHash}
+It updates the database with these values
+The problem is that with a local_ prefix hash and a local URL, the system isn't correctly handling this special case of locally stored enhanced images.
+
+The AI service is using local storage instead of IPFS for the enhanced image, but the memory service is expecting IPFS hashes. There's a mismatch in how enhanced images are being handled.
+
+I need to check how the memory service is processing these values and why it's not storing the enhanced image information in the database despite receiving a valid response from the AI service.
+
+Found the Issue: Local Enhancement Storage Not Being Processed
+Looking at the AI service response you shared, I can now see exactly what's happening:
+
+{
+  "success": true,
+  "originalIpfsHash": "bafybeig2opcbjfykkrzhgu5oogaxb7cfl4u2g5s5cujby7uwhn74hdbbhm",
+  "enhancedImageHash": "local_1743278259168",
+  "ipfsHash": "local_1743278259168",
+  "enhancedImageUrl": "/local-image/1743278259168",
+  "isLocalStorage": true,
+  "enhancementDetails": {
+    "originalSize": 628020,
+    "enhancedSize": 1230346,
+    "timestamp": 1743278259168
+  }
+}
+
+Copy
+
+
+The Core Problem
+The AI service is returning locally stored enhanced images (note isLocalStorage: true), but your memory service code is expecting IPFS hashes that match a specific format.
+
+The key issue is here in the memory service's enhanceMemoryImage function:
+
+// Extract enhanced hash
+const enhancedHash = aiResponse.data.ipfsHash; // or aiResponse.data.enhancedImageHash
+
+// This condition is likely failing:
+if (!enhancedHash) {
+  return res.status(400).json({
+    success: false, 
+    message: 'No enhanced hash returned'
+  });
+}
+
+// This URL construction doesn't work with local storage:
+const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+
+Copy
+
+
+The Fix
+Update your memory service code to handle local storage properly:
+
+// In enhanceMemoryImage function
+const enhancedHash = aiResponse.data.enhancedImageHash || aiResponse.data.ipfsHash;
+const isLocalStorage = aiResponse.data.isLocalStorage === true;
+
+if (!enhancedHash) {
+  return res.status(400).json({
+    success: false, 
+    message: 'No enhanced hash returned'
+  });
+}
+
+// Use the correct URL based on storage type
+let enhancedUrl;
+if (isLocalStorage) {
+  // Use the URL directly provided by the AI service
+  enhancedUrl = aiResponse.data.enhancedImageUrl;
+  console.log(`Using local storage for enhanced image: ${enhancedUrl}`);
+} else {
+  // Use IPFS gateway for IPFS hashes
+  enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+  console.log(`Using IPFS storage for enhanced image: ${enhancedUrl}`);
+}
+
+// Update the database with enhanced image info
+const { data, error } = await supabase
+  .from('memories')
+  .update({
+    enhanced_image_hash: enhancedHash,
+    enhanced_image_url: enhancedUrl,
+    is_local_enhancement: isLocalStorage,
+    updated_at: new Date()
+  })
+  .eq('id', memoryId)
+  .select();
+
+Copy
+
+
+services\memory-service\src\index.js
+Also update the background enhancement function with similar logic to handle local storage.
+
+Verification Steps
+Apply these changes to both enhancement functions in your memory service
+Rebuild and restart the memory service:
+docker-compose down
+docker-compose build memory-service
+docker-compose up -d
+
+Copy
+
+
+Send command to Terminal
+Try enhancing an image again and verify the database fields are populated correctly
+The critical insight is that your AI service is clearly working (it's returning an enhanced image), but the memory service isn't correctly processing the local storage case and therefore not updating the database fields properly.
+
+also Updating memory 170 with enhanced image hash: local_1743278259168
+
+memory-service      | Error updating memory with enhanced image: {
+
+memory-service      |   code: 'PGRST204',
+
+memory-service      |   details: null,
+
+memory-service      |   hint: null,
+
+memory-service      |   message: "Could not find the 'updated_at' column of 'memories' in the schema cache"
+
+memory-service      | } along with above error
+
+
+
+Context
+— none fetched
+
+Thought Process
+This is a new and important error message:
+
+Error updating memory with enhanced image: {
+  code: 'PGRST204',
+  details: null,
+  hint: null,
+  message: "Could not find the 'updated_at' column of 'memories' in the schema cache"
+}
+This indicates that the Supabase database schema doesn't have an updated_at column in the memories table, but our code is trying to set this column during the update operation.
+
+Let's look at how the memory data is inserted initially in the code:
+
+// Create record with exact column names matching Supabase schema
+const memoryData = { 
+  title: title || "Untitled Memory", 
+  description: description || "", 
+  created_at: date || new Date().toISOString(), 
+  ipfsHash: ipfsHash,
+  url: fileUrls.length > 0 ? fileUrls[0] : "",
+  ownerAddress: owner,
+  narrative: "", // Start with empty narrative
+  type: "standard",
+  sharecount: 0
+};
+I don't see updated_at being set during initial creation.
+
+Also, in the SQL INSERT statement you previously shared, there was no updated_at column:
+
+INSERT INTO "public"."memories" ("id", "title", "description", "ipfsHash", "type", "ownerAddress", "url", "created_at", "narrative", "sharecount", "enhanced_image_hash", "enhanced_image_url", "is_local_enhancement") VALUES ...
+So the schema issue is clear - our code is trying to update a column that doesn't exist in the database schema.
+
+We need to modify the update operation to remove the updated_at column from the update query. Let's fix this:
+
+Found the Schema Issue: Missing updated_at Column
+Now we have two issues to fix:
+
+The local storage handling as identified earlier
+The database schema error: Could not find the 'updated_at' column of 'memories' in the schema cache
+The Database Schema Issue
+The error shows that your Supabase table doesn't have an updated_at column, but your code is trying to update it. Looking at the SQL INSERT statement you shared earlier:
+
+INSERT INTO "public"."memories" ("id", "title", "description", "ipfsHash", "type", "ownerAddress", "url", "created_at", "narrative", "sharecount", "enhanced_image_hash", "enhanced_image_url", "is_local_enhancement") VALUES ...
+
+Copy
+
+
+There's no updated_at column in this schema.
+
+The Complete Fix
+Update your memory service code to handle both issues:
+
+// In the enhanceMemoryImage function
+const enhancedHash = aiResponse.data.enhancedImageHash || aiResponse.data.ipfsHash;
+const isLocalStorage = aiResponse.data.isLocalStorage === true;
+
+if (!enhancedHash) {
+  return res.status(400).json({
+    success: false, 
+    message: 'No enhanced hash returned'
+  });
+}
+
+// Use the correct URL based on storage type
+let enhancedUrl;
+if (isLocalStorage) {
+  // Use the URL directly provided by the AI service
+  enhancedUrl = aiResponse.data.enhancedImageUrl;
+  console.log(`Using local storage for enhanced image: ${enhancedUrl}`);
+} else {
+  // Use IPFS gateway for IPFS hashes
+  enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+  console.log(`Using IPFS storage for enhanced image: ${enhancedUrl}`);
+}
+
+// Update the database with enhanced image info - REMOVED updated_at
+const { data, error } = await supabase
+  .from('memories')
+  .update({
+    enhanced_image_hash: enhancedHash,
+    enhanced_image_url: enhancedUrl,
+    is_local_enhancement: isLocalStorage
+    // Removed updated_at field that doesn't exist in the schema
+  })
+  .eq('id', memoryId)
+  .select();
+
+Copy
+
+
+services\memory-service\src\index.js
+Also update the background enhancement function similarly:
+
+// In the enhanceImageWithAI function
+if (aiResponse.data.success && enhancedHash) {
+  console.log(`Updating memory ${memoryId} with enhanced image hash: ${enhancedHash}`);
+  
+  const isLocalStorage = aiResponse.data.isLocalStorage === true;
+  let enhancedUrl;
+  
+  if (isLocalStorage) {
+    enhancedUrl = aiResponse.data.enhancedImageUrl;
+  } else {
+    enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
+  }
+  
+  // Update database without updated_at field
+  const { data, error } = await supabase
+    .from('memories')
+    .update({ 
+      enhanced_image_hash: enhancedHash,
+      enhanced_image_url: enhancedUrl,
+      is_local_enhancement: isLocalStorage
+      // Remove updated_at field
+    })
+    .eq('id', memoryId);
+
+Copy
+
+
+services\memory-service\src\index.js
+Verification Steps
+Apply these fixes to both enhancement functions
+Rebuild and restart the memory service:
+docker-compose down
+docker-compose build memory-service
+docker-compose up -d
+
+Copy
+
+
+Send command to Terminal
+Test the enhancement flow again
+The combination of fixing the local storage handling and removing the non-existent updated_at column should resolve both issues you're experiencing.
+
+_currentUrl: 'http://ai-service:3003/api/enhance-image',
+
+memory-service      |     _timeout: null,
+
+memory-service      |     [Symbol(kCapture)]: false
+
+memory-service      |   },
+
+
+
+Context
+— none fetched
+
+Thought Process
+This error message shows a fragment of what appears to be an Axios request configuration object with:
+
+_currentUrl: 'http://ai-service:3003/api/enhance-image'
+_timeout: null
+[Symbol(kCapture)]: false
+This is part of the Axios request configuration when the memory service is trying to call the AI service. It shows that:
+
+The URL is set to http://ai-service:3003/api/enhance-image, which looks correct
+There's no timeout set (_timeout: null)
+There's a symbol property for capturing stack traces which is set to false
+This is just showing the configuration of the Axios request, not indicating any specific error by itself. It means the memory service is correctly attempting to call the AI service at the expected endpoint.
+
+However, the fact that we're seeing this configuration object suggests it might be part of a larger error message or debug output. Without the complete output, it's hard to determine if there's an actual issue with this configuration.
+
+The URL looks correct based on what we've seen previously, so this part of the configuration seems fine. If there are other issues like connection refused errors, they would likely appear in other parts of the log that aren't shown here.
+
+Based on the fragment you shared from the memory service logs:
+
+_currentUrl: 'http://ai-service:3003/api/enhance-image',
+_timeout: null,
+[Symbol(kCapture)]: false
+
+Copy
+
+
+This is part of an Axios request configuration object. It shows that:
+
+The memory service is correctly trying to connect to the AI service at the expected URL
+No timeout is set for the request (_timeout: null)
+Stack trace capturing is disabled ([Symbol(kCapture)]: false)
+This fragment by itself doesn't indicate an error - it's just showing the configuration of the HTTP request. The URL appears to be correct, pointing to the AI service's enhance-image endpoint.
+
+However, this is likely part of a larger error message or debug output. If you're still encountering issues, please share the complete error message surrounding this configuration fragment so I can provide a more comprehensive analysis.
+
+The URL seems correctly configured to match your Docker network setup, so the connection issues we were diagnosing earlier might be resolved, but there could be other problems causing the enhancement to fail that would be visible in the complete error log.

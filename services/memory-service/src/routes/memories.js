@@ -44,54 +44,8 @@ const updateMemoryImage = async (req, res) => {
   }
 };
 
-// Add enhance memory function
-const enhanceMemoryImage = async (req, res) => {
-  try {
-    const { memoryId, ipfsHash, description } = req.body;
-    
-    console.log(`Enhancing memory: ${memoryId}, hash: ${ipfsHash}`);
-    
-    // Call AI service for enhancement
-    const aiResponse = await axios.post('http://ai-service:3003/api/enhance-image', {
-      ipfsHash,
-      description
-    });
-    
-    console.log('AI response:', aiResponse.data);
-    
-    // Get enhanced hash
-    const enhancedHash = aiResponse.data.enhancedIpfsHash;
-    const enhancedUrl = `https://gateway.pinata.cloud/ipfs/${enhancedHash}`;
-    
-    // Update database
-    const result = await db.query(
-      `UPDATE memories 
-       SET enhanced_image_hash = $1, 
-           enhanced_image_url = $2,
-           is_local_enhancement = false,
-           updated_at = NOW() 
-       WHERE id = $3 
-       RETURNING *`,
-      [enhancedHash, enhancedUrl, memoryId]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Memory not found' });
-    }
-    
-    return res.status(200).json({
-      success: true,
-      memory: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Enhancement error:', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-};
-
 // Register routes
 router.post('/update-memory-image', updateMemoryImage);
-router.post('/enhance-memory-image', enhanceMemoryImage);
 
 // Export the router
 export default router;
